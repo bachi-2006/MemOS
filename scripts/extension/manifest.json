@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "MemOS - Memory Sync Extension",
+  "version": "1.0.0",
+  "description": "One-click memory sharing plugin for local Web UIs, Ollama, and ChatGPT.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "MemOS Memory Sync"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
