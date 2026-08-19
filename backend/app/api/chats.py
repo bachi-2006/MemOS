@@ -1,13 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from app.database.session import get_db
+from app.database.session import get_db, SessionLocal
 from app.models.models import Chat, Message, User
 from app.schemas.schemas import ChatRequest
 from app.api.deps import get_current_user_optional
 from app.services.ollama_service import ollama_service
 from app.services.context_builder import context_builder
+from app.services.analysis_service import analysis_service
 
 router = APIRouter(prefix="/chats", tags=["Chat Storage & History"])
+
+async def async_extract_chat_memories(user_id: str, chat_id: str):
+    """
+    Phase 2: Automated Background Memory Extraction.
+    Extracts facts, deduplicates, flags conflicts, and updates Qdrant & Neo4j silently
+    after every conversation turn without blocking user chat streaming.
+    """
+    db = SessionLocal()
+    try:
+        await analysis_service.analyze_chat(db=db, user_id=user_id, chat_id=chat_id)
+    except Exception as e:
+        print(f"Background chat analysis error for chat {chat_id}: {e}")
+    finally:
+        db.close()
 
 @router.get("/")
 def get_user_chats(
@@ -33,6 +48,7 @@ def get_chat_messages(
 @router.post("/send")
 async def send_chat_message(
     request: ChatRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_optional)
 ):
@@ -84,6 +100,9 @@ async def send_chat_message(
     db.add(assistant_msg)
     db.commit()
 
+    # Automatically extract memories, facts, and graph triples in background
+    background_tasks.add_task(async_extract_chat_memories, user_id=current_user.id, chat_id=chat.id)
+
     return {
         "chat_id": chat.id,
         "user_message": {"id": user_msg.id, "role": "user", "content": user_msg.content},
@@ -100,7 +119,8 @@ async def stream_chat_message(
 ):
     """
     Phase 4: Real-time token streaming chat endpoint via Server-Sent Events (SSE).
-    Builds personalized context, streams tokens dynamically, and persists assistant message on completion.
+    Builds personalized context, streams tokens dynamically, persists assistant message,
+    and automatically triggers background memory extraction upon stream completion.
     """
     # Get or create chat session
     if request.chat_id:
@@ -138,9 +158,11 @@ async def stream_chat_message(
         }
 
     chat_id_val = chat.id
+    user_id_val = current_user.id
 
     async def sse_generator():
         import json
+        import asyncio
         full_response = []
         try:
             async for token in ollama_service.generate_chat_stream(
@@ -161,6 +183,9 @@ async def stream_chat_message(
             assistant_msg = Message(chat_id=chat_id_val, role="assistant", content=complete_text or "No response generated.")
             db.add(assistant_msg)
             db.commit()
+
+            # Schedule automated background memory extraction without delaying the stream
+            asyncio.create_task(async_extract_chat_memories(user_id=user_id_val, chat_id=chat_id_val))
         except Exception as err:
             print(f"Error saving stream message to DB: {err}")
 

@@ -1,0 +1,29 @@
+{
+  "benchmark_timestamp": "2026-08-19 13:58:50",
+  "total_scenarios": 15,
+  "metrics": {
+    "raw_llm": {
+      "precision_at_3": 0.0,
+      "recall_at_3": 0.0,
+      "mrr": 0.0,
+      "latency_ms": 0.0
+    },
+    "naive_rag": {
+      "precision_at_3": 0.3333,
+      "recall_at_3": 0.3567,
+      "mrr": 0.6,
+      "latency_ms": 0.03
+    },
+    "memos_hybrid": {
+      "precision_at_3": 0.4,
+      "recall_at_3": 0.4567,
+      "mrr": 0.7,
+      "latency_ms": 0.0
+    }
+  },
+  "lifecycle_accuracy": {
+    "deduplication_rate_percent": 100.0,
+    "conflict_detection_rate_percent": 100.0,
+    "compression_token_savings_percent": 65.6
+  }
+}

@@ -1,43 +1,43 @@
-# MemOS — Research Benchmarking & Evaluation Methodology
+# MemOS — Empirical Research Benchmarking & Evaluation Methodology
 
-> **Author:** MemOS Research Core  
-> **Evaluation Target:** Persistent Context Injection vs. Baseline Local LLM Inference
-
----
-
-## 🎯 Evaluation Objectives
-
-To scientifically evaluate the recall, precision, ranking accuracy, and latency trade-offs of MemOS against standard local LLM execution:
-1. **Baseline**: Raw Ollama without external context augmentation.
-2. **Standard RAG**: Ollama + Single-vector semantic similarity retrieval (Qdrant).
-3. **MemOS Multi-Store Framework**: Ollama + Hybrid Vector Search (Qdrant) + Knowledge Graph Associative Links (Neo4j) + Auto-Learned User Profile (PostgreSQL) + Dynamic Importance Lifecycle Decay.
+> **Target Scope:** Comparative evaluation of Raw Local LLM vs. Naive Vector RAG vs. MemOS Multi-Store Framework.
 
 ---
 
-## 📊 Comparative Performance Results
+## 🎯 Evaluation Objectives & Baselines
 
-| Retrieval Architecture | Precision@3 | Recall@3 | MRR | P95 Latency (ms) | Memory Overhead |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **1. Raw Ollama (No RAG)** | 0.000 | 0.000 | 0.000 | 15.2 ms | 0 MB (Stateless) |
-| **2. Basic Semantic RAG** | 0.667 | 0.625 | 0.750 | 25.4 ms | +10.2 ms |
-| **3. MemOS Multi-Store (Hybrid)** | **0.950** | **0.917** | **0.960** | 28.1 ms | +12.9 ms |
-
----
-
-## 🔬 Lifecycle & Optimization Integrity
-
-| Metric Category | Measured Score | Evaluation Notes |
-| :--- | :---: | :--- |
-| **Duplicate Fact Reduction Rate** | **94.2%** | Eliminates redundant facts across multi-turn sessions using normalized entity hashing. |
-| **Contradiction / Conflict Detection** | **92.0%** | Accurately flags and updates conflicting user statements (e.g. changing stack preferences). |
-| **Memory Compression Ratio** | **68.5%** | Hierarchical LLM summarization condenses stale (>30 days) memories into high-density notes. |
-| **Zero Ghost Memory Guarantee** | **100%** | Hard unified deletion synchronously removes vectors from Qdrant, triples from Neo4j, and rows from PostgreSQL. |
+To rigorously evaluate recall, precision, ranking accuracy, lifecycle efficiency, and latency trade-offs:
+1. **Baseline A — Raw LLM**: Local LLM execution with zero long-term memory or external context augmentation.
+2. **Baseline B — Naive Vector RAG**: Standard single-vector cosine similarity top-$k$ retrieval over unstructured chunks.
+3. **Proposed System — MemOS Multi-Store Framework**: Hybrid Vector Indexing (Qdrant) + Knowledge Graph Associative Links (Neo4j) + Auto-Learned User Profile (PostgreSQL) + Dynamic Importance Lifecycle Filtering.
 
 ---
 
-## ⚙️ Reproducing Benchmarks
+## 📐 Mathematical Metric Definitions
 
-Run the automated evaluation suite locally:
+1. **Precision@K**:
+   $$\text{Precision@K} = \frac{|\text{Relevant Ground Truth} \cap \text{Retrieved@K}|}{K}$$
+
+2. **Recall@K**:
+   $$\text{Recall@K} = \frac{|\text{Relevant Ground Truth} \cap \text{Retrieved@K}|}{|\text{Relevant Ground Truth}|}$$
+
+3. **Mean Reciprocal Rank (MRR)**:
+   $$\text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}$$
+
+4. **Dynamic Importance Decay Formula**:
+   $$\text{Importance} = (\text{Recency} \times 0.3) + (\text{Frequency} \times 0.3) + (\text{EntityRichness} \times 0.2) + (\text{Confidence} \times 0.2) + \text{PinBonus}$$
+
+5. **Token Compression Ratio**:
+   $$\text{Compression Ratio} = \frac{\text{Uncompressed Tokens} - \text{Compressed Tokens}}{\text{Uncompressed Tokens}} \times 100\%$$
+
+---
+
+## ⚙️ How to Reproduce Benchmarks Locally
+
+Run the empirical evaluation harness from the repository root:
+
 ```powershell
-python scripts/benchmark.py
+python scripts/real_benchmark.py
 ```
+
+The script will automatically execute all test scenarios, compute mathematical ranking and lifecycle scores, print the benchmark table to stdout, and export raw results to `docs/BENCHMARK_RESULTS.json`.

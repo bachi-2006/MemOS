@@ -126,6 +126,13 @@ async def async_store_chat_and_memory(
                 source="ollama_desktop_proxy",
                 tags=["desktop_proxy", model]
             )
+
+        # 5. Automatically trigger background chat analysis & graph sync
+        try:
+            from app.services.analysis_service import analysis_service
+            await analysis_service.analyze_chat(db=db, user_id=user_id, chat_id=chat.id)
+        except Exception as err:
+            print(f"Background proxy analysis notice: {err}")
     except Exception as e:
         print(f"Async chat storage notice: {e}")
     finally:
