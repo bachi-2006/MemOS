@@ -102,13 +102,20 @@ export default function Home() {
       content: inputPrompt,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const assistantMsgId = (Date.now() + 1).toString();
+    const assistantPlaceholder: ChatMessage = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantPlaceholder]);
     const currentInput = inputPrompt;
     setInputPrompt('');
     setIsSending(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/ollama/chat', {
+      const response = await fetch('http://localhost:8000/api/v1/ollama/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,29 +124,63 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const assistantMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: data.response || 'No response returned.',
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        const fallbackMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `Received: "${currentInput}". I am ready to process memories!`,
-        };
-        setMessages((prev) => [...prev, fallbackMsg]);
+      if (!response.ok || !response.body) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let accumulatedText = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.token) {
+                accumulatedText += data.token;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsgId ? { ...msg, content: accumulatedText } : msg
+                  )
+                );
+              }
+            } catch {
+              // Ignore partial chunk parse errors
+            }
+          }
+        }
+      }
+
+      if (!accumulatedText.trim()) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? { ...msg, content: 'Memory context synthesized. Ready for next query.' }
+              : msg
+          )
+        );
       }
     } catch {
-      const fallbackMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `I received your message. You can now run "Analyze Chat" to extract knowledge graph triples, semantic vectors, and metadata.`,
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                content: `I received your message. You can now run "Analyze Chat" to extract knowledge graph triples, semantic vectors, and metadata.`,
+              }
+            : msg
+        )
+      );
     } finally {
       setIsSending(false);
     }

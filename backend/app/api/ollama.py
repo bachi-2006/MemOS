@@ -71,6 +71,69 @@ async def chat_with_ollama(
     }
 
 
+@router.post("/stream")
+async def stream_with_ollama(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Phase 4: Direct streaming endpoint with optional Personalized Context injection.
+    Streams token deltas formatted as Server-Sent Events (SSE).
+    """
+    final_prompt = request.prompt
+    system_ctx = request.system_context
+    context_meta = {}
+
+    if request.personalized:
+        context_res = await context_builder.build_augmented_context(
+            db=db,
+            user_id=current_user.id,
+            user_prompt=request.prompt,
+            top_k=5,
+            active_project=request.active_project
+        )
+        final_prompt = context_res["augmented_prompt"]
+        context_meta = {
+            "memories_used": context_res["memories_used"],
+            "graph_nodes_used": context_res["graph_nodes_used"],
+            "context_injected": context_res["context_injected"]
+        }
+
+    async def sse_generator():
+        import json
+        try:
+            async for token in ollama_service.generate_chat_stream(
+                prompt=final_prompt,
+                model=request.model,
+                system_context=system_ctx
+            ):
+                payload = json.dumps({"token": token, "done": False})
+                yield f"data: {payload}\n\n"
+        except Exception as e:
+            err_payload = json.dumps({"token": f" [Error: {str(e)}]", "done": False})
+            yield f"data: {err_payload}\n\n"
+
+        final_payload = json.dumps({
+            "token": "",
+            "done": True,
+            "personalized": request.personalized,
+            "explanation": context_meta
+        })
+        yield f"data: {final_payload}\n\n"
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
 @router.post("/share-memory")
 async def share_memory_from_ollama_app(
     payload: MemoryShareHook,

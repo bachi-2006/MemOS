@@ -111,25 +111,37 @@ export const ChatTab: React.FC<ChatTabProps> = ({
       {/* Chat Transcript Area */}
       <div className="flex-1 bg-[#111827]/60 backdrop-blur-md border border-gray-800/80 rounded-2xl p-6 flex flex-col justify-between overflow-hidden shadow-2xl">
         <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {messages.map((msg, index) => {
+            const isLastAssistant = msg.role === 'assistant' && index === messages.length - 1 && isSending;
+            return (
               <div
-                className={`max-w-2xl px-5 py-3.5 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-950/40'
-                    : 'bg-gray-800/80 text-gray-200 border border-gray-700/60 rounded-bl-none shadow-md'
-                }`}
+                key={msg.id}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="text-[10px] uppercase font-bold tracking-wider mb-1 opacity-60">
-                  {msg.role === 'user' ? 'You' : 'Ollama LLM'}
+                <div
+                  className={`max-w-2xl px-5 py-3.5 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-950/40'
+                      : 'bg-gray-800/80 text-gray-200 border border-gray-700/60 rounded-bl-none shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider mb-1 opacity-60">
+                    <span>{msg.role === 'user' ? 'You' : 'Ollama LLM'}</span>
+                    {isLastAssistant && (
+                      <span className="flex items-center gap-1 text-indigo-400 font-semibold normal-case">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                        streaming...
+                      </span>
+                    )}
+                  </div>
+                  {msg.content}
+                  {isLastAssistant && (
+                    <span className="inline-block w-2 h-4 ml-1 bg-indigo-400 animate-pulse align-middle rounded-sm"></span>
+                  )}
                 </div>
-                {msg.content}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Chat Input Bar */}

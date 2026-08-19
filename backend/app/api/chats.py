@@ -91,3 +91,95 @@ async def send_chat_message(
         "personalized": request.personalized,
         "explanation": context_meta
     }
+
+@router.post("/stream")
+async def stream_chat_message(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Phase 4: Real-time token streaming chat endpoint via Server-Sent Events (SSE).
+    Builds personalized context, streams tokens dynamically, and persists assistant message on completion.
+    """
+    # Get or create chat session
+    if request.chat_id:
+        chat = db.query(Chat).filter(Chat.id == request.chat_id, Chat.user_id == current_user.id).first()
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+    else:
+        title = request.prompt[:30] + "..." if len(request.prompt) > 30 else request.prompt
+        chat = Chat(user_id=current_user.id, title=title)
+        db.add(chat)
+        db.commit()
+        db.refresh(chat)
+
+    # Save user message
+    user_msg = Message(chat_id=chat.id, role="user", content=request.prompt)
+    db.add(user_msg)
+    db.commit()
+
+    final_prompt = request.prompt
+    context_meta = {}
+
+    if request.personalized:
+        context_res = await context_builder.build_augmented_context(
+            db=db,
+            user_id=current_user.id,
+            user_prompt=request.prompt,
+            top_k=5,
+            active_project=request.active_project
+        )
+        final_prompt = context_res["augmented_prompt"]
+        context_meta = {
+            "memories_used": context_res["memories_used"],
+            "graph_nodes_used": context_res["graph_nodes_used"],
+            "context_injected": context_res["context_injected"]
+        }
+
+    chat_id_val = chat.id
+
+    async def sse_generator():
+        import json
+        full_response = []
+        try:
+            async for token in ollama_service.generate_chat_stream(
+                prompt=final_prompt,
+                model=request.model,
+                system_context=request.system_context
+            ):
+                full_response.append(token)
+                payload = json.dumps({"token": token, "done": False, "chat_id": chat_id_val})
+                yield f"data: {payload}\n\n"
+        except Exception as e:
+            err_payload = json.dumps({"token": f" [Error: {str(e)}]", "done": False, "chat_id": chat_id_val})
+            yield f"data: {err_payload}\n\n"
+
+        # Persist full assistant message to DB
+        complete_text = "".join(full_response)
+        try:
+            assistant_msg = Message(chat_id=chat_id_val, role="assistant", content=complete_text or "No response generated.")
+            db.add(assistant_msg)
+            db.commit()
+        except Exception as err:
+            print(f"Error saving stream message to DB: {err}")
+
+        final_payload = json.dumps({
+            "token": "",
+            "done": True,
+            "chat_id": chat_id_val,
+            "personalized": request.personalized,
+            "explanation": context_meta
+        })
+        yield f"data: {final_payload}\n\n"
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )

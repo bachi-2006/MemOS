@@ -156,3 +156,54 @@ def test_user_session_isolation():
         mock_ctx.assert_called_once()
         call_kwargs = mock_ctx.call_args.kwargs
         assert call_kwargs.get("user_id") == "user_bob_456"
+
+def test_api_v1_chats_stream_endpoint():
+    """Verify POST /api/v1/chats/stream returns SSE stream and persists message"""
+    async def mock_token_stream(*args, **kwargs):
+        tokens = ["Streamed ", "response ", "from ", "MemOS."]
+        for t in tokens:
+            yield t
+
+    with patch("app.services.ollama_service.ollama_service.generate_chat_stream", side_effect=mock_token_stream), \
+         patch("app.services.context_builder.context_builder.build_augmented_context", new_callable=AsyncMock) as mock_ctx:
+        
+        mock_ctx.return_value = {
+            "augmented_prompt": "User Question: Hello",
+            "context_injected": "",
+            "memories_used": [],
+            "graph_nodes_used": []
+        }
+
+        response = client.post("/api/v1/chats/stream", json={"prompt": "Hello", "personalized": True})
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers.get("content-type", "")
+        content = response.text
+        assert "data: " in content
+        assert "Streamed " in content
+        assert "MemOS." in content
+
+def test_api_v1_ollama_stream_endpoint():
+    """Verify POST /api/v1/ollama/stream returns SSE stream directly"""
+    async def mock_token_stream(*args, **kwargs):
+        tokens = ["Ollama ", "stream ", "active."]
+        for t in tokens:
+            yield t
+
+    with patch("app.services.ollama_service.ollama_service.generate_chat_stream", side_effect=mock_token_stream), \
+         patch("app.services.context_builder.context_builder.build_augmented_context", new_callable=AsyncMock) as mock_ctx:
+        
+        mock_ctx.return_value = {
+            "augmented_prompt": "User Question: Test stream",
+            "context_injected": "",
+            "memories_used": [],
+            "graph_nodes_used": []
+        }
+
+        response = client.post("/api/v1/ollama/stream", json={"prompt": "Test stream", "personalized": True})
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers.get("content-type", "")
+        content = response.text
+        assert "data: " in content
+        assert "Ollama " in content
+        assert "active." in content
+
