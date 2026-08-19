@@ -19,19 +19,20 @@
   - **Vector Search (Qdrant)**: High-dimensional semantic vector indexing and similarity retrieval using local embeddings (`nomic-embed-text`).
   - **Knowledge Graph (Neo4j)**: Entity-relationship graph extraction and associative link exploration across conversations.
   - **Fast Cache (Redis)**: Low-latency caching for active sessions and lifecycle jobs.
-- **⚡ Automated Chat Analysis Engine**:
-  - Parses conversation transcripts, ignores greetings and small talk, extracts structured facts/technologies/projects/skills, eliminates duplicate memories, and computes confidence scores.
+- **⚡ Automated Chat Analysis & Memory Optimization**:
+  - **🧠 Analyze Chat**: Parses conversation transcripts, ignores greetings and small talk, extracts structured facts/technologies/projects/skills, eliminates duplicates, and updates graph triples.
+  - **🧹 Optimize Memory**: Sweeps the entire memory store, recalculates importance scores, triggers LLM compression on stale memories, and cleans up contradictory facts.
 - **🎯 Dynamic Context Augmentation & Personalization**:
   - Automatically enriches prompts with relevant semantic memories, knowledge graph triples, user profile preferences, active projects, and pinned notes before calling Ollama.
 - **⏳ Adaptive Memory Lifecycle Engine**:
-  - **Importance Scoring**: Mathematical weighted decay based on recency, access frequency, entity richness, confidence, and user pins ($Recency \times 0.3 + Frequency \times 0.3 + Entity \times 0.2 + Confidence \times 0.2 + Pin$).
-  - **Memory Compression**: Automatically synthesizes older memories into compact, high-density summaries via LLM.
-  - **Adaptive Forgetting**: Transitions stale or low-importance memories to forgotten status.
-  - **Conflict Resolution**: Identifies contradictions between new user inputs and historical memory entries.
-- **🔌 Plug-and-Play Integrations**:
-  - **OpenAI Proxy (`/v1/chat/completions`)**: Use MemOS as an upstream proxy in Ollama Desktop, Open WebUI, or third-party client apps.
-  - **Terminal / PowerShell CLI**: Push memories directly from your shell or background logs.
-  - **Browser Userscript & Chrome Extension**: One-click memory sharing from ChatGPT, Claude, or WebUIs.
+  - **Importance Scoring**: Mathematical weighted decay ($Recency \times 0.3 + Frequency \times 0.3 + Entity \times 0.2 + Confidence \times 0.2 + Pin$).
+  - **Memory Compression**: Synthesizes older memories into compact summaries via LLM.
+  - **Unified Multi-Store Deletion**: Hard deletion synchronized across PostgreSQL, Qdrant, and Neo4j (no ghost memories).
+- **🔌 1-Button Ollama Desktop & Proxy Bridge**:
+  - **OpenAI Proxy (`/v1/chat/completions` & `/v1/models`)**: Drop-in OpenAI-compatible streaming proxy (SSE) on port `11435` / `8000`.
+  - **Windows Bridge (`scripts/start_bridge.bat`)**: 1-click local connection detector and proxy launcher.
+  - **PowerShell CLI (`scripts/save_memory.ps1`)**: Push memories directly from your shell.
+  - **Browser Extension**: 1-click memory sharing from ChatGPT, Claude, or WebUIs.
 
 ---
 

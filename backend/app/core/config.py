@@ -23,9 +23,14 @@ class Settings(BaseSettings):
     NEO4J_PASSWORD: str = "memos_password"
 
     # Ollama Local Integration
-    OLLAMA_BASE_URL: str = "http://172.27.112.1:11434"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    PROXY_HOST: str = "127.0.0.1"
+    PROXY_PORT: int = 11435
     DEFAULT_LLM_MODEL: str = "qwen3.5:9b"
     DEFAULT_EMBEDDING_MODEL: str = "nomic-embed-text"
+
+    # CORS & Security
+    ALLOWED_ORIGINS: list = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000", "http://127.0.0.1:8000", "*"]
 
     if SettingsConfigDict:
         model_config = SettingsConfigDict(env_file=".env", extra="ignore")

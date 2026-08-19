@@ -76,13 +76,34 @@ export const ChatTab: React.FC<ChatTabProps> = ({
             </div>
           </button>
 
-          {/* Action Button */}
+          {/* Action Buttons */}
           <button
             onClick={handleAnalyzeChat}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-900/30 border border-indigo-400/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium px-3.5 py-2 rounded-xl shadow-lg shadow-indigo-900/30 border border-indigo-400/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             <Brain className="w-4 h-4 text-indigo-200" />
-            <span className="text-sm font-semibold">🧠 Analyze Chat</span>
+            <span className="text-xs font-semibold">🧠 Analyze Chat</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('http://localhost:8000/api/v1/memory/optimize', { method: 'POST' });
+                if (res.ok) {
+                  const data = await res.json();
+                  alert(`🧹 Memory Optimization Complete!\nScanned: ${data.memories_scanned}\nCompressed: ${data.memories_compressed}\nForgotten: ${data.memories_forgotten}`);
+                } else {
+                  alert('Memory optimization returned error.');
+                }
+              } catch (e: any) {
+                alert(`Optimization notice: ${e.message}`);
+              }
+            }}
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-medium px-3.5 py-2 rounded-xl border border-gray-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            title="Sweep, recalculate importance, compress older memories, and prune graph"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-xs font-semibold">🧹 Optimize Memory</span>
           </button>
         </div>
       </div>

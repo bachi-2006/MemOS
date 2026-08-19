@@ -72,4 +72,44 @@ class MemoryService:
 
         return search_results
 
+    async def delete_memory_unified(
+        self,
+        db: Session,
+        user_id: str,
+        memory_id: str
+    ) -> bool:
+        """
+        Phase 11: Unified deletion across PostgreSQL, Qdrant, and Neo4j.
+        Prevents ghost memories and preserves cross-system consistency.
+        """
+        memory = db.query(MemoryModel).filter(
+            MemoryModel.id == memory_id,
+            MemoryModel.user_id == user_id
+        ).first()
+
+        if not memory:
+            return False
+
+        # 1. Delete vector from Qdrant
+        try:
+            qdrant_service.delete_memory_vector(memory_id)
+        except Exception as e:
+            print(f"Qdrant deletion notice: {e}")
+
+        # 2. Prune extracted entities from Neo4j graph if present
+        try:
+            if memory.entities:
+                for ent in memory.entities:
+                    ent_name = ent.get("name") if isinstance(ent, dict) else str(ent)
+                    if ent_name:
+                        from app.services.graph_service import graph_service
+                        graph_service.delete_fact(user_id, ent_name)
+        except Exception as e:
+            print(f"Neo4j entity prune notice: {e}")
+
+        # 3. Delete from PostgreSQL
+        db.delete(memory)
+        db.commit()
+        return True
+
 memory_service = MemoryService()

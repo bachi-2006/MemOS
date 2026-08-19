@@ -82,5 +82,20 @@ class KnowledgeGraphService:
             print(f"Neo4j get_user_graph notice: {e}")
             return {"nodes": [], "edges": []}
 
+    def delete_fact(self, user_id: str, entity_name: str):
+        """Phase 11: Prune graph node and edges scoped to user"""
+        driver = self.get_driver()
+        if not driver:
+            return
+        cypher = """
+        MATCH (u:User {id: $user_id})-[r1:HAS_ENTITY]->(a {name: $entity_name})
+        DETACH DELETE a
+        """
+        try:
+            with driver.session() as session:
+                session.run(cypher, user_id=user_id, entity_name=entity_name)
+        except Exception as e:
+            print(f"Neo4j delete_fact notice: {e}")
+
 
 graph_service = KnowledgeGraphService()

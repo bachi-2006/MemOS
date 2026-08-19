@@ -8,10 +8,12 @@ import { SearchTab } from '../components/SearchTab';
 import { GraphTab } from '../components/GraphTab';
 import { UserProfileTab } from '../components/UserProfileTab';
 import { AnalysisModal } from '../components/AnalysisModal';
+import { OllamaIntegrationPanel } from '../components/OllamaIntegrationPanel';
 import { ChatMessage, UserProfileData, AnalysisResult } from '../components/types';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
+  const [selectedModel, setSelectedModel] = useState<string>('qwen3.5:9b');
 
   // User Profile State
   const [userProfile, setUserProfile] = useState<UserProfileData>({
@@ -215,18 +217,26 @@ export default function Home() {
     <div className="flex h-screen bg-[#090d16] text-gray-100 overflow-hidden font-sans">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <main className="flex-1 overflow-y-auto p-8 bg-[#090d16]">
+      <main className="flex-1 overflow-y-auto p-8 bg-[#090d16] space-y-6">
         {activeTab === 'chat' && (
-          <ChatTab
-            messages={messages}
-            inputPrompt={inputPrompt}
-            setInputPrompt={setInputPrompt}
-            isSending={isSending}
-            personalizedEnabled={personalizedEnabled}
-            setPersonalizedEnabled={setPersonalizedEnabled}
-            handleSendMessage={handleSendMessage}
-            handleAnalyzeChat={handleAnalyzeChat}
-          />
+          <div className="max-w-5xl mx-auto space-y-6">
+            <OllamaIntegrationPanel
+              personalizedEnabled={personalizedEnabled}
+              setPersonalizedEnabled={setPersonalizedEnabled}
+              selectedModel={selectedModel}
+              onModelSelect={setSelectedModel}
+            />
+            <ChatTab
+              messages={messages}
+              inputPrompt={inputPrompt}
+              setInputPrompt={setInputPrompt}
+              isSending={isSending}
+              personalizedEnabled={personalizedEnabled}
+              setPersonalizedEnabled={setPersonalizedEnabled}
+              handleSendMessage={handleSendMessage}
+              handleAnalyzeChat={handleAnalyzeChat}
+            />
+          </div>
         )}
 
         {activeTab === 'dashboard' && <DashboardTab />}

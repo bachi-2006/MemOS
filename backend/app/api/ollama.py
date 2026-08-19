@@ -11,9 +11,18 @@ from app.services.memory_service import memory_service
 
 router = APIRouter(prefix="/ollama", tags=["Ollama Integration"])
 
+@router.get("/status")
+async def get_ollama_status():
+    """
+    Phase 1: Deep health & status detection endpoint for local Ollama server.
+    Returns connection status, models found, active model, version, latency.
+    """
+    status = await ollama_service.get_status()
+    return status
+
 @router.get("/models")
 async def get_models():
-    """List available local Ollama models"""
+    """List available local Ollama models with real details."""
     models = await ollama_service.list_models()
     return {"models": models}
 

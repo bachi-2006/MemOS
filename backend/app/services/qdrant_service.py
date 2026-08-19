@@ -114,6 +114,19 @@ class QdrantService:
             print(f"Qdrant search notice: {e}")
             return []
 
+    def delete_memory_vector(self, memory_id: str):
+        """Phase 11: Hard deletion of vector from Qdrant to prevent ghost memories."""
+        client = self.get_client()
+        if not client:
+            return
+        try:
+            client.delete(
+                collection_name=self.collection_name,
+                points_selector=rest_models.PointIdsList(points=[memory_id])
+            )
+        except Exception as e:
+            print(f"Qdrant delete notice: {e}")
+
     def set_memory_status(self, memory_id: str, status: str):
         client = self.get_client()
         if not client:

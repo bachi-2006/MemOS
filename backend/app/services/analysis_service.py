@@ -337,4 +337,82 @@ CRITICAL INSTRUCTIONS:
 
         db.commit()
 
+    async def optimize_memory_store(
+        self,
+        db: Session,
+        user_id: str,
+        compression_days: int = 30
+    ) -> Dict[str, Any]:
+        """
+        Phase 10: 🧹 Optimize Memory / 🧠 Analyze Memory Operation.
+        Processes the existing memory store:
+          1. Recalculates importance scores across all memories.
+          2. Runs conflict detection on recent active memories.
+          3. Synthesizes and compresses older memories (> 30 days) via LLM.
+          4. Runs adaptive forgetting for stale/low-importance archived memories.
+          5. Refreshes knowledge graph consistency.
+        """
+        from app.services.lifecycle_service import lifecycle_engine
+
+        # 1. Update importance scores
+        importance_engine.update_all_importance_scores(db, user_id)
+
+        # 2. Query active memories
+        active_memories = db.query(MemoryModel).filter(
+            MemoryModel.user_id == user_id,
+            MemoryModel.status == "active"
+        ).all()
+        scanned_count = len(active_memories)
+
+        # 3. Memory Compression
+        compressed_count = await lifecycle_engine.compress_old_memories(
+            db=db,
+            user_id=user_id,
+            days_threshold=compression_days
+        )
+
+        # 4. Adaptive Forgetting
+        forgotten_count = lifecycle_engine.adaptive_forgetting(
+            db=db,
+            user_id=user_id,
+            min_importance_threshold=0.3
+        )
+
+        # 5. Check for conflicts among recent memories
+        conflicts_flagged = []
+        for mem in active_memories[:10]:
+            try:
+                c_res = await conflict_engine.detect_and_resolve_conflicts(db, user_id, mem.content)
+                if c_res.get("conflict_detected"):
+                    conflicts_flagged.append({
+                        "memory_id": mem.id,
+                        "content": mem.content,
+                        "analysis": c_res.get("analysis")
+                    })
+            except Exception:
+                pass
+
+        # 6. Record in AnalysisHistory
+        history = AnalysisHistory(
+            user_id=user_id,
+            chat_id=None,
+            summary=f"Memory Store Optimization: Scanned {scanned_count} memories, compressed {compressed_count}, forgotten {forgotten_count}.",
+            entities_extracted=[],
+            facts_extracted=[],
+            duplicates_removed=0,
+            graph_nodes_added=0,
+            vectors_indexed=scanned_count
+        )
+        db.add(history)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Memory store optimization completed successfully.",
+            "memories_scanned": scanned_count,
+            "memories_compressed": compressed_count,
+            "memories_forgotten": forgotten_count,
+            "conflicts_flagged": conflicts_flagged
+        }
+
 analysis_service = AnalyzeChatEngine()

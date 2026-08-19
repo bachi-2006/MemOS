@@ -73,3 +73,38 @@ async def analyze_chat_endpoint(
     )
     return result
 
+@router.post("/optimize")
+async def optimize_memory_endpoint(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Phase 10: 🧹 Optimize Memory / 🧠 Analyze Memory Store.
+    Sweeps existing stored memories, applies importance recalculation, compression,
+    adaptive forgetting, and conflict detection.
+    """
+    result = await analysis_service.optimize_memory_store(
+        db=db,
+        user_id=current_user.id
+    )
+    return result
+
+@router.delete("/{memory_id}")
+async def delete_memory_endpoint(
+    memory_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    Phase 11: Unified Multi-Store Memory Deletion.
+    Deletes memory across PostgreSQL, Qdrant vectors, and Neo4j knowledge graph.
+    """
+    success = await memory_service.delete_memory_unified(
+        db=db,
+        user_id=current_user.id,
+        memory_id=memory_id
+    )
+    if not success:
+        return {"status": "error", "message": "Memory not found or could not be deleted."}
+    return {"status": "success", "message": f"Memory {memory_id} deleted across all stores."}
+
