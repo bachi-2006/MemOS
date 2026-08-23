@@ -1,5 +1,5 @@
 {
-  "benchmark_timestamp": "2026-08-19 13:58:50",
+  "benchmark_timestamp": "2026-08-23 12:58:31",
   "total_scenarios": 15,
   "metrics": {
     "raw_llm": {
@@ -12,7 +12,7 @@
       "precision_at_3": 0.3333,
       "recall_at_3": 0.3567,
       "mrr": 0.6,
-      "latency_ms": 0.03
+      "latency_ms": 0.02
     },
     "memos_hybrid": {
       "precision_at_3": 0.4,
