@@ -10,6 +10,22 @@
 
 **MemOS** is an autonomous, persistent long-term memory framework built for local Large Language Models (LLMs) and companion agent applications. It extends local LLMs (such as Ollama with Llama 3, Qwen, or Mistral) with multi-store memory indexing, automated conversation analysis, real-time knowledge graph extraction, semantic vector search, dynamic importance decay, adaptive compression, and conflict resolution.
 
+### 🧠 What Data MemOS Stores
+MemOS is a **local-first, privacy-preserving** memory system. Everything it learns stays on your machine (or your docker host); no conversation transcripts, vectors, or graph triples ever leave for the cloud. Concretely, MemOS persists:
+
+| Data Kind | Where It Lives | Contents |
+| :--- | :--- | :--- |
+| **Users & Auth** | PostgreSQL / SQLite (`users`) | JWT-auth'd user accounts (email, username, bcrypt password hash) |
+| **Conversations** | PostgreSQL / SQLite (`chats`, `messages`) | Chat sessions, titles, and full user/assistant message history |
+| **Canonical Memories** | PostgreSQL / SQLite (`memories`) | The memory content plus lifecycle metadata (importance, confidence, access count, tags, entities, status, collection, project, pinned flag) |
+| **Semantic Vectors** | Qdrant (`memory_vectors`) | Dense 768-dim embeddings (via `nomic-embed-text`) with cosine similarity; filtered by `user_id` + `status` |
+| **Knowledge Graph** | Neo4j (`User`, `Project`, `Technology`, `Skill`, `Concept` nodes and triple edges) | Entity-relationship facts like `(User)-[:USES]->(Qdrant)` scoped per user |
+| **User Profile** | PostgreSQL / SQLite (`user_profiles`) | Auto-learned languages, frameworks, projects, skills, interests, writing style, goals |
+| **Analysis History** | PostgreSQL / SQLite (`analysis_history`) | Audit log of every chat analysis / memory-optimization run with counts |
+| **Session Cache** | Redis | Low-latency session lookup (optional, graceful if absent) |
+
+> **Dual deployment mode:** If PostgreSQL (or the other stores) is reachable it is used; otherwise the backend automatically falls back to a local **SQLite** file (`backend/memos_local.db`) plus an in-memory / optional Qdrant — enabling a lightweight standalone "companion" mode with no Docker required.
+
 ---
 
 ## 🌟 Key Highlights & Capabilities
@@ -22,6 +38,7 @@
 - **⚡ Automated Chat Analysis & Memory Optimization**:
   - **🧠 Analyze Chat**: Parses conversation transcripts, ignores greetings and small talk, extracts structured facts/technologies/projects/skills, eliminates duplicates, and updates graph triples.
   - **🧹 Optimize Memory**: Sweeps the entire memory store, recalculates importance scores, triggers LLM compression on stale memories, and cleans up contradictory facts.
+  - **🤖 Automatic & Scheduled**: Every chat turn in the UI/proxy automatically triggers background memory extraction (non-blocking `BackgroundTasks`), and an **APScheduler** job runs nightly to recalculate importance, compress stale memories, and run adaptive forgetting — no manual maintenance required.
 - **🎯 Dynamic Context Augmentation & Personalization**:
   - Automatically enriches prompts with relevant semantic memories, knowledge graph triples, user profile preferences, active projects, and pinned notes before calling Ollama.
 - **⏳ Adaptive Memory Lifecycle Engine**:
@@ -99,37 +116,44 @@ MemOs/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── app/
-│   │   ├── main.py                     # FastAPI entrypoint & lifespan scheduler
+│   │   ├── main.py                     # FastAPI entrypoint, health endpoints & scheduler startup
 │   │   ├── api/                        # API route controllers
-│   │   │   ├── auth.py                 # JWT User authentication & registration
-│   │   │   ├── chats.py                # Chat session storage and message history
+│   │   │   ├── auth.py                 # JWT User authentication, registration & login
+│   │   │   ├── chats.py                # Chat session storage, streaming & background extraction
 │   │   │   ├── dashboard.py            # Real-time metrics & memory distribution
 │   │   │   ├── deps.py                 # Security dependencies & companion fallbacks
 │   │   │   ├── graph.py                # Knowledge graph retrieval endpoints
-│   │   │   ├── memory.py               # Memory storage, search, and chat analysis
-│   │   │   ├── ollama.py               # Ollama model listing, chat & share-memory hook
+│   │   │   ├── memory.py               # Memory store/search/analyze/optimize/delete endpoints
+│   │   │   ├── ollama.py               # Ollama status/models, chat, streaming & share-memory hook
 │   │   │   ├── profile.py              # User profile & preferences
-│   │   │   └── proxy.py                # OpenAI-compatible proxy (/v1/chat/completions)
-│   │   ├── core/                       # Core configuration & JWT security
+│   │   │   └── proxy.py                # OpenAI-compatible proxy (/v1/models & /v1/chat/completions, SSE)
+│   │   ├── core/                       # Configuration (Pydantic settings) & JWT security
 │   │   ├── database/                   # SQLAlchemy engine & SQLite fallback session
-│   │   ├── models/                     # Database models (User, Memory, Chat, Profile, etc.)
+│   │   ├── models/                     # ORM models (User, Chat, Message, MemoryModel, UserProfile, AnalysisHistory)
 │   │   ├── schemas/                    # Pydantic request/response schemas
 │   │   ├── services/                   # Business logic & external service connectors
-│   │   │   ├── analysis_service.py     # Conversation parsing & entity extraction
+│   │   │   ├── analysis_service.py     # Conversation parsing, entity/fact extraction & profile updates
 │   │   │   ├── conflict_service.py     # Contradiction detection engine
 │   │   │   ├── context_builder.py      # Personalized prompt context assembly
 │   │   │   ├── graph_service.py        # Neo4j Cypher query manager
 │   │   │   ├── importance_service.py   # Memory importance scoring formula
-│   │   │   ├── lifecycle_service.py    # Compression & forgetting engines
-│   │   │   ├── memory_service.py       # Dual-storage (Postgres + Qdrant) indexing
-│   │   │   ├── ollama_service.py       # Ollama chat & embedding client
+│   │   │   ├── lifecycle_service.py    # Compression & adaptive-forgetting engines
+│   │   │   ├── memory_service.py       # Dual-storage (Postgres/JSON + Qdrant) indexing, search, unified delete
+│   │   │   ├── ollama_service.py       # Ollama status/chat/stream/embedding client
 │   │   │   └── qdrant_service.py       # Qdrant collection & search manager
 │   │   └── workers/
-│   │       └── scheduler.py            # APScheduler nightly memory maintenance jobs
-│   └── tests/                          # Pytest unit & integration test suite
+│   │       └── scheduler.py            # APScheduler nightly memory lifecycle jobs (importance, compression, forgetting)
+│   └── tests/                          # Pytest unit, integration, proxy & security tests
+│       ├── test_analysis_service.py
+│       ├── test_full_pipeline.py
+│       ├── test_multi_tenant_security.py
+│       ├── test_ollama_proxy.py
+│       ├── test_personalized_context.py
+│       └── test_profile_service.py
 ├── frontend/
 │   ├── Dockerfile
 │   ├── package.json
+│   ├── next.config.js
 │   ├── tailwind.config.js
 │   ├── tsconfig.json
 │   └── src/
@@ -142,17 +166,32 @@ MemOs/
 │           ├── ChatTab.tsx             # Interactive chat with personalization toggle
 │           ├── DashboardTab.tsx        # Memory distribution & metrics cards
 │           ├── GraphTab.tsx            # Neo4j entity & knowledge triple explorer
+│           ├── OllamaIntegrationPanel.tsx  # Live Ollama/proxy status, model picker, 1-click bridge
 │           ├── SearchTab.tsx           # Semantic vector search & memory table
 │           ├── Sidebar.tsx             # Navigation sidebar
 │           ├── UserProfileTab.tsx      # Auto-learned profile editor
 │           └── types.ts                # TypeScript data interfaces
 ├── scripts/
-│   ├── extension/                      # Chrome Extension (Manifest V3)
+│   ├── extension/                      # Chrome / Edge / Brave Extension (Manifest V3)
 │   │   ├── manifest.json
 │   │   └── content.js
+│   ├── memos_bridge.py                 # Windows local bridge proxy (port 11435)
+│   ├── start_bridge.bat                # 1-click Windows bridge launcher
 │   ├── memos_browser_plugin.user.js    # Tampermonkey / Greasemonkey userscript
-│   └── save_memory.ps1                 # PowerShell CLI helper script
+│   ├── save_memory.ps1                 # PowerShell CLI helper script
+│   ├── benchmark.py                    # Benchmark harness wrapper
+│   └── real_benchmark.py               # Empirical benchmark (Raw LLM vs Basic RAG vs MemOS)
+├── docs/                               # Detailed technical documentation
+│   ├── ARCHITECTURE.md
+│   ├── BENCHMARKING.md
+│   ├── BENCHMARK_RESULTS.json
+│   ├── IMPLEMENTATION_STATUS.md
+│   ├── OLLAMA_INTEGRATION.md
+│   ├── RESEARCH_ROADMAP.md
+│   └── SECURITY.md
+├── .github/workflows/ci.yml            # CI: pytest + benchmark harness + frontend typecheck
 ├── docker-compose.yml                  # Multi-container orchestration
+├── .env.example                        # Environment configuration template
 └── README.md                           # Master project documentation
 ```
 
@@ -228,9 +267,11 @@ The FastAPI backend exposes RESTful endpoints at `/api/v1`:
 
 ### 2. Memory Extraction & Semantic Search
 - `POST /api/v1/memory/analyze-chat`: Run the multi-step chat analysis engine to extract facts, entities, projects, technologies, and generate vector embeddings & graph triples.
+- `POST /api/v1/memory/optimize`: Global "optimize memory" sweep — recalculate importance, compress stale memories via LLM, run adaptive forgetting, and detect conflicts.
 - `GET /api/v1/memory/search?query=...&limit=5`: High-dimensional cosine similarity search across Qdrant vector memory.
 - `POST /api/v1/memory/store`: Explicitly create and index a canonical memory into PostgreSQL and Qdrant.
 - `GET /api/v1/memory/all`: Fetch all active relational memories for the current user.
+- `DELETE /api/v1/memory/{memory_id}`: Unified multi-store deletion from PostgreSQL, Qdrant, and Neo4j (no ghost memories).
 
 ### 3. Knowledge Graph & Profile
 - `GET /api/v1/graph/`: Retrieve Neo4j nodes and knowledge triples scoped to the current user.
@@ -241,7 +282,15 @@ The FastAPI backend exposes RESTful endpoints at `/api/v1`:
 - `GET /api/v1/dashboard/metrics`: Real-time lifecycle statistics (active, archived, forgotten memories, importance scores, compression ratios).
 
 ### 5. OpenAI / Ollama Proxy Compatibility
-- `POST /v1/chat/completions` or `POST /api/chat`: Universal proxy endpoint. Route standard OpenAI/Ollama client requests to MemOS to automatically inject long-term vector memory before dispatching to Ollama.
+- `POST /v1/chat/completions` or `POST /api/chat`: Universal proxy endpoint. Route standard OpenAI/Ollama client requests to MemOS to automatically inject long-term vector memory before dispatching to Ollama. Supports both streaming (`stream: true`, SSE) and non-streaming modes.
+- `GET /v1/models`: Returns installed local Ollama models in the standard OpenAI JSON list format.
+- `GET /api/v1/ollama/share-memory` / `POST /api/v1/memory/store`: Share memories from external tools, the browser extension, or the PowerShell CLI (`save_memory.ps1`).
+- `POST /api/v1/chats/send` & `POST /api/v1/chats/stream`: Chat with automatic memory extraction and real-time SSE streaming.
+
+### 6. Health & Diagnostics
+- `GET /health`: Aggregate status across all services.
+- `GET /health/ollama` · `/health/postgres` · `/health/qdrant` · `/health/neo4j` · `/health/redis`: Per-subsystem connectivity and latency checks.
+- `GET /api/v1/ollama/status`: Detailed Ollama status (connection state, installed models, active model, version, latency).
 
 ---
 
@@ -264,21 +313,33 @@ Install `scripts/memos_browser_plugin.user.js` in Tampermonkey or Violentmonkey 
 
 ---
 
-## 🧪 Testing
+## 🧪 Testing & Benchmarks
 
-Run the automated test suite with `pytest`:
+Run the automated backend test suite with `pytest`:
 
 ```bash
-# Run all backend unit and integration tests
+# Run all backend unit and integration tests (works in standalone SQLite mode, no Docker needed)
 pytest backend/tests
 ```
 
-All 7 test suites validate:
+```bash
+# Run the empirical research benchmark harness (Raw LLM vs. Basic RAG vs. MemOS Multi-Store)
+python scripts/real_benchmark.py
+```
+
+All test suites validate:
 - Chat analysis JSON extraction and parsing fallbacks.
 - Memory deduplication and importance scoring.
 - Personalized context assembly (vector + graph + profile).
 - User profile continuous auto-updating.
 - Multi-store pipeline execution with mock drivers.
+- OpenAI proxy streaming (SSE) and non-streaming compat.
+- **Multi-tenant security isolation** (User A cannot read User B's chats, vectors, or profile).
+
+### CI Pipeline
+GitHub Actions (`.github/workflows/ci.yml`) automatically runs on every push/PR to `master`/`main`:
+- `pytest backend/tests` + the empirical benchmark harness (Python 3.10).
+- Frontend `tsc --noEmit` typecheck (Node 18).
 
 ---
 
