@@ -1,11 +1,18 @@
 @echo off
 setlocal
-title MemOS Phase 2 Backup UI
-set DIR=%~dp0
-set PORT=5150
+title MemOS Phase 2 Full-Stack UI
+set ROOT=%~dp0
 
-echo Starting Phase 2 Backup Build UI on http://127.0.0.1:%PORT%/chat.html
-start "" http://127.0.0.1:%PORT%/chat.html
-python -m http.server %PORT% --bind 127.0.0.1 --directory "%DIR%"
+if not exist "%ROOT%frontend\dist\index.html" (
+  echo Building frontend...
+  pushd "%ROOT%frontend"
+  call npm install >nul 2>&1
+  call npm run build
+  popd
+)
+
+echo Starting MemOS Phase 2 API on http://127.0.0.1:5151
+start "" http://127.0.0.1:5151
+python "%ROOT%backend\run.py"
 
 endlocal
