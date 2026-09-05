@@ -4,50 +4,68 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>qwen — local · phase 2</title>
+<link rel="icon" href="data:," />
 <style>
 :root {
-  --bg: #fafaf9;
+  --bg: #f4f5fa;
+  --bg-glow: radial-gradient(1200px 600px at 85% -10%, rgba(99, 102, 241, .08), transparent 60%);
   --panel: #ffffff;
-  --panel-2: #f5f5f4;
-  --ink: #1c1917;
-  --muted: #78716c;
-  --faint: #a8a29e;
-  --line: #e7e5e4;
-  --line-strong: #d6d3d1;
-  --accent: #0f766e;
+  --panel-2: #eef0f7;
+  --ink: #101828;
+  --muted: #5b6573;
+  --faint: #97a0b0;
+  --line: #e3e7f0;
+  --line-strong: #cfd6e4;
+  --accent: #4f46e5;
+  --accent-2: #7c3aed;
   --accent-ink: #ffffff;
-  --accent-soft: #ccfbf1;
-  --code-bg: #f5f5f4;
-  --danger: #b91c1c;
-  --shadow: 0 1px 2px rgba(28, 25, 23, .06);
-  --radius: 12px;
+  --accent-soft: #e7e9fd;
+  --code-bg: #f1f3f9;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 2px 8px rgba(16, 24, 40, .04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, .12);
+  --radius: 14px;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", monospace;
 }
 html[data-theme="dark"] {
-  --bg: #0c0a09;
-  --panel: #171412;
-  --panel-2: #1c1917;
-  --ink: #e7e5e4;
-  --muted: #a8a29e;
-  --faint: #78716c;
-  --line: #292524;
-  --line-strong: #44403c;
-  --accent: #2dd4bf;
-  --accent-ink: #04231f;
-  --accent-soft: #134e4a;
-  --code-bg: #1c1917;
+  --bg: #0b0e16;
+  --bg-glow: radial-gradient(1200px 600px at 85% -10%, rgba(99, 102, 241, .16), transparent 60%);
+  --panel: #121622;
+  --panel-2: #181d2c;
+  --ink: #e7eaf3;
+  --muted: #98a1b5;
+  --faint: #5d6678;
+  --line: #232a3c;
+  --line-strong: #333d55;
+  --accent: #818cf8;
+  --accent-2: #a78bfa;
+  --accent-ink: #0c0f1a;
+  --accent-soft: #242b4d;
+  --code-bg: #171c2b;
   --danger: #f87171;
-  --shadow: none;
+  --warn: #fbbf24;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .5);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
+  background-image: var(--bg-glow);
+  background-attachment: fixed;
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
   transition: background .2s ease, color .2s ease;
 }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--faint); background-clip: content-box; border: 2px solid transparent; }
+*::-webkit-scrollbar-track { background: transparent; }
 button { font: inherit; }
 .app { display: flex; height: 100%; }
 
@@ -60,9 +78,22 @@ button { font: inherit; }
   background: var(--panel);
   border-right: 1px solid var(--line);
 }
-.brand { padding: 18px 16px 12px; border-bottom: 1px solid var(--line); }
-.brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-.brand-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.brand { padding: 20px 18px 14px; border-bottom: 1px solid var(--line); }
+.brand-mark { display: flex; align-items: center; gap: 10px; }
+.brand-logo {
+  width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 800;
+  box-shadow: 0 3px 10px rgba(99, 102, 241, .35);
+}
+.brand-name { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+.brand-name em {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.brand-sub { font-size: 10.5px; color: var(--muted); margin-top: 1px; letter-spacing: .01em; }
 .side-row { padding: 12px 12px 8px; }
 .sessions { flex: 1; overflow-y: auto; padding: 4px 8px; }
 .session {
@@ -70,14 +101,14 @@ button { font: inherit; }
   width: 100%; text-align: left; padding: 8px 10px;
   border: 1px solid transparent; border-radius: 10px;
   background: none; color: var(--ink); cursor: pointer;
-  margin-bottom: 2px;
+  margin-bottom: 2px; transition: background .12s ease;
 }
 .session:hover { background: var(--panel-2); }
-.session.active { background: var(--accent-soft); border-color: var(--accent); }
+.session.active { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .session .t {
   flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.session .n { font-size: 11px; color: var(--muted); }
+.session .n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .session .del {
   border: none; background: none; color: var(--muted); cursor: pointer;
   padding: 2px 4px; border-radius: 6px; opacity: 0;
@@ -88,8 +119,8 @@ button { font: inherit; }
 .side-section { border-top: 1px solid var(--line); padding: 10px 8px; }
 .side-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 8px 6px; font-size: 11px; text-transform: uppercase;
-  letter-spacing: .05em; color: var(--muted);
+  padding: 0 8px 6px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--faint); font-weight: 600;
 }
 .model-list { max-height: 220px; overflow-y: auto; }
 .model-item {
@@ -105,14 +136,14 @@ button { font: inherit; }
 .model-item .ld {
   width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0;
 }
-.model-item .ld.on { background: #16a34a; }
-.model-item .io { font-size: 11px; color: var(--faint); }
+.model-item .ld.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); }
+.model-item .io { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .side-foot {
   display: flex; align-items: center; gap: 8px;
   border-top: 1px solid var(--line); padding: 10px 14px; font-size: 12px; color: var(--muted);
 }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
-.dot.on { background: #16a34a; }
+.dot.on { background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, .18); }
 .dot.off { background: var(--danger); }
 .side-foot .sp { flex: 1; }
 
@@ -154,37 +185,59 @@ button { font: inherit; }
 }
 
 .messages {
-  flex: 1; overflow-y: auto; padding: 20px 0 8px;
+  flex: 1; overflow-y: auto; padding: 24px 0 8px;
   scroll-behavior: smooth;
 }
 .messages-inner { max-width: 780px; margin: 0 auto; padding: 0 20px; }
-.msg { display: flex; margin-bottom: 22px; gap: 14px; }
+.msg { display: flex; margin-bottom: 26px; gap: 14px; animation: msg-in .18s ease; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .msg .who {
-  width: 74px; flex-shrink: 0; font-size: 11px; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .05em; padding-top: 5px;
+  width: 74px; flex-shrink: 0; font-size: 10px; color: var(--faint);
+  text-transform: uppercase; letter-spacing: .08em; padding-top: 7px;
+  font-weight: 700;
 }
-.msg.user .who { text-align: right; }
+.msg.user .who { text-align: right; color: var(--accent); }
+.msg.user .who::after { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: auto; margin-top: 6px; }
+.msg.assistant .who::after { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); margin-top: 6px; }
 .msg .body { flex: 1; min-width: 0; }
 .msg .bubble {
   line-height: 1.65; white-space: pre-wrap; word-break: break-word;
 }
 .msg.user .bubble {
-  display: inline-block; background: var(--panel-2); border: 1px solid var(--line);
+  display: inline-block; background: var(--accent-soft); border: 1px solid var(--accent);
   border-radius: var(--radius); padding: 10px 14px; max-width: 100%;
 }
 .msg .bubble p { margin: 0 0 8px; }
 .msg .bubble p:last-child { margin-bottom: 0; }
+.msg .bubble h1, .msg .bubble h2, .msg .bubble h3, .msg .bubble h4 {
+  margin: 14px 0 6px; line-height: 1.3; letter-spacing: -0.01em;
+}
+.msg .bubble h1 { font-size: 17px; }
+.msg .bubble h2 { font-size: 15.5px; }
+.msg .bubble h3 { font-size: 14px; }
+.msg .bubble h4 { font-size: 13px; }
+.msg .bubble ul, .msg .bubble ol { padding-left: 22px; margin: 4px 0 8px; }
+.msg .bubble li { margin: 2px 0; }
+.msg .bubble blockquote {
+  margin: 6px 0; padding: 2px 12px; border-left: 3px solid var(--accent);
+  color: var(--muted); background: var(--panel-2); border-radius: 0 8px 8px 0;
+}
 .msg .bubble pre {
   background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
-  padding: 10px 12px; overflow-x: auto; margin: 6px 0; font-size: 12.5px;
+  padding: 10px 12px; overflow-x: auto; margin: 8px 0; font-size: 12.5px;
+  font-family: var(--font-mono); line-height: 1.5;
 }
-.msg .bubble code { background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 12.5px; }
-.msg .bubble pre code { background: none; padding: 0; }
-.msg .bubble a { color: var(--accent); }
+.msg .bubble code {
+  font-family: var(--font-mono); background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 5px; padding: 1px 5px; font-size: 12.5px;
+}
+.msg .bubble pre code { background: none; border: none; padding: 0; }
+.msg .bubble a { color: var(--accent); text-decoration: none; }
+.msg .bubble a:hover { text-decoration: underline; }
 .msg .cursor {
   display: inline-block; width: 7px; height: 15px; margin-left: 2px;
   vertical-align: -2px; background: var(--accent);
-  animation: blink 1s steps(1) infinite;
+  animation: blink 1s steps(1) infinite; border-radius: 2px;
 }
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -192,18 +245,20 @@ button { font: inherit; }
 .reasoning-toggle {
   display: flex; align-items: center; gap: 7px;
   border: none; background: none; color: var(--muted); cursor: pointer;
-  font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px;
-  border-radius: 8px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 8px;
+  border-radius: 8px; font-weight: 700;
 }
-.reasoning-toggle:hover { background: var(--panel-2); }
+.reasoning-toggle:hover { background: var(--panel-2); color: var(--ink); }
 .reasoning-toggle::before {
   content: ""; width: 7px; height: 7px; border-radius: 2px;
-  background: var(--accent); opacity: .6;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); opacity: .8;
 }
+.reasoning.open .reasoning-toggle::before { opacity: 1; }
 .reasoning-body {
   margin-top: 6px; font-size: 12.5px; color: var(--muted); opacity: .9;
   white-space: pre-wrap; word-break: break-word; line-height: 1.6;
-  padding-left: 10px; border-left: 2px solid var(--line-strong);
+  padding: 8px 12px; border-left: 2px solid var(--line-strong); border-radius: 0 8px 8px 0;
+  background: var(--panel-2);
 }
 .reasoning.open .reasoning-body { display: block; }
 .reasoning:not(.open) .reasoning-body { display: none; }
@@ -217,7 +272,7 @@ button { font: inherit; }
 }
 .mini:hover { color: var(--ink); border-color: var(--line-strong); }
 .mini:disabled { opacity: .4; cursor: default; }
-.meta { font-size: 11px; color: var(--faint); margin-top: 8px; }
+.meta { font-size: 11px; color: var(--faint); margin-top: 8px; font-variant-numeric: tabular-nums; }
 
 /* Composer */
 .composer-area {
@@ -230,8 +285,19 @@ textarea#input {
   flex: 1; font: inherit; font-size: 14px; line-height: 1.5; color: var(--ink);
   background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius);
   padding: 11px 14px; resize: none; outline: none; max-height: 200px;
+  box-shadow: var(--shadow);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-textarea#input:focus { border-color: var(--accent); }
+textarea#input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+#sendBtn {
+  width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px;
+  border: 1px solid var(--accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, .35);
+  transition: transform .1s ease, filter .15s ease;
+}
+#sendBtn:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+#sendBtn:disabled { opacity: .45; cursor: default; box-shadow: none; }
 .statusline {
   font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px;
   display: flex; gap: 14px; flex-wrap: wrap;
@@ -241,11 +307,16 @@ textarea#input:focus { border-color: var(--accent); }
 .btn {
   border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink);
   border-radius: 10px; padding: 9px 14px; cursor: pointer; font-size: 13px;
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
 }
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: .45; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.btn.primary:hover { filter: brightness(1.04); }
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 3px 10px rgba(99, 102, 241, .28);
+}
+.btn.primary:hover { filter: brightness(1.06); }
 .btn.block { width: 100%; }
 .btn.small { padding: 6px 11px; font-size: 12px; border-radius: 9px; }
 .icon-btn {
@@ -256,9 +327,17 @@ textarea#input:focus { border-color: var(--accent); }
 
 .empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  text-align: center; color: var(--muted); font-size: 13px; line-height: 1.8;
+  text-align: center; color: var(--muted); font-size: 13px; line-height: 1.9;
 }
 .empty b { color: var(--ink); font-weight: 600; }
+.empty .empty-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 28px 36px; box-shadow: var(--shadow);
+}
+.empty .empty-kbd {
+  font-family: var(--font-mono); font-size: 11px; background: var(--code-bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px;
+}
 .hidden { display: none !important; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -280,31 +359,270 @@ textarea#input:focus { border-color: var(--accent); }
   .topbar { padding-left: 56px; }
   .msg .who { display: none; }
 }
+
+/* ============ MemOS memory engine UI ============ */
+.side-tabs {
+  display: flex; gap: 2px; padding: 8px 8px 6px; border-bottom: 1px solid var(--line);
+}
+.side-tab {
+  flex: 1; border: 1px solid transparent; background: none; color: var(--muted);
+  padding: 7px 4px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background .12s ease, color .12s ease;
+}
+.side-tab:hover { background: var(--panel-2); color: var(--ink); }
+.side-tab.active { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
+.side-tab .count {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; border-radius: 999px;
+  min-width: 17px; height: 17px; padding: 0 5px; font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.side-view { display: none; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; }
+.side-view.active { display: flex; }
+#viewSettings { overflow-y: auto; }
+#viewMemory { overflow: hidden; }
+.memory-head { padding: 10px 10px; flex-shrink: 0; }
+.mem-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
+}
+.mem-stat {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 10px;
+}
+.mem-stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mem-stat .l { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+.mem-stat.conflict .v { color: var(--danger); }
+.mem-search {
+  width: 100%; font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 9px;
+  padding: 8px 10px; margin-bottom: 8px;
+}
+.mem-search:focus { outline: none; border-color: var(--accent); }
+.mem-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+.mem-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; max-height: none; }
+.mem-item {
+  border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px;
+  margin-bottom: 8px; background: var(--panel); box-shadow: var(--shadow);
+  transition: border-color .12s ease;
+}
+.mem-item:hover { border-color: var(--line-strong); }
+.mem-item.pinned { border-color: var(--accent); }
+.mem-item.conflict { border-color: var(--danger); }
+.mem-item.forgotten { opacity: .45; }
+.mem-top { display: flex; align-items: flex-start; gap: 8px; }
+.mem-pin {
+  border: none; background: none; color: var(--faint); cursor: pointer; font-size: 13px;
+  padding: 2px 3px; border-radius: 6px; flex-shrink: 0;
+}
+.mem-pin:hover { color: var(--accent); }
+.mem-pin.on { color: var(--accent); }
+.mem-text { flex: 1; font-size: 12.5px; line-height: 1.5; word-break: break-word; min-width: 0; }
+.mem-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.mem-tag {
+  font-size: 10px; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 6px; padding: 1px 6px; color: var(--muted);
+  font-family: var(--font-mono);
+}
+.mem-tag.conflict { background: rgba(185,28,28,.1); border-color: var(--danger); color: var(--danger); }
+.mem-tag.strong { color: var(--accent); border-color: var(--accent); }
+.mem-bar-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.mem-imp-label { font-size: 10px; color: var(--muted); width: 62px; flex-shrink: 0; font-family: var(--font-mono); }
+.mem-imp { flex: 1; height: 5px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.mem-imp > span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.mem-imp > span.imp-low { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.mem-imp > span.imp-hi { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.mem-foot { display: flex; gap: 4px; margin-top: 8px; }
+.mem-act {
+  border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  border-radius: 7px; padding: 3px 8px; font-size: 10.5px; cursor: pointer;
+}
+.mem-act:hover { color: var(--ink); border-color: var(--line-strong); }
+.mem-act.danger:hover { color: var(--danger); border-color: var(--danger); }
+.mem-empty { padding: 16px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.mem-spin {
+  width: 26px; height: 26px; border: 2px solid var(--line); border-top-color: var(--accent);
+  border-radius: 50%; margin: 14px auto; animation: memspin .8s linear infinite;
+}
+@keyframes memspin { to { transform: rotate(360deg); } }
+.mem-busy { font-size: 11px; color: var(--muted); text-align: center; padding: 4px; }
+
+.recall-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  border-radius: 999px; padding: 3px 9px; font-size: 11px;
+}
+.recall-badge .kd { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.recall-badge.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.recall-badge.on .kd { background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, .45); } 50% { box-shadow: 0 0 0 4px rgba(79, 70, 229, 0); } }
+.mem-toast {
+  position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--ink); color: var(--bg); border-radius: 10px; padding: 10px 16px;
+  font-size: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.2); opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease; z-index: 90; max-width: 80vw;
+}
+.mem-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.mem-toast b { color: var(--accent); }
+
+.side-view .field { display: flex; flex-direction: column; gap: 6px; }
+.side-view .field label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.side-view .field input[type="number"], .side-view .field select, .side-view .field textarea {
+  font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%;
+}
+.side-view .field textarea { resize: vertical; min-height: 54px; }
+.side-view .field input:focus, .side-view .field select:focus, .side-view .field textarea:focus { outline: none; border-color: var(--accent); }
+.side-view .range-row { display: flex; align-items: center; gap: 10px; }
+.side-view input[type="range"] { flex: 1; accent-color: var(--accent); }
+.side-view .val { font-size: 12px; color: var(--muted); width: 28px; text-align: right; }
+.side-view .shortcuts { grid-column: 1 / -1; }
+.side-view .shortcuts code {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 1px 6px; font-size: 12px;
+}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
-      <div class="brand-name">qwen — local</div>
-      <div class="brand-sub">phase 2 · backup build · session-only</div>
-    </div>
-    <div class="side-row">
-      <button id="newChat" class="btn primary block">New conversation</button>
-    </div>
-    <nav class="sessions" id="sessions" aria-label="Conversations"></nav>
-    <div class="side-section">
-      <div class="side-head">
-        <span>Installed models</span>
-        <button id="refreshModels" class="icon-btn" title="Refresh model list">&#8635;</button>
+      <div class="brand-mark">
+        <div class="brand-logo">M</div>
+        <div>
+          <div class="brand-name"><em>qwen</em> — local</div>
+          <div class="brand-sub">MemOS · phase 2 · backup build</div>
+        </div>
       </div>
-      <div class="model-list" id="modelList"></div>
     </div>
-    <div class="side-foot">
-      <span class="dot" id="statusDot"></span>
-      <span id="statusText">checking</span>
-      <span class="sp"></span>
-      <button id="themeBtn" class="btn small">Dark</button>
+    <div class="side-tabs" role="tablist">
+      <button class="side-tab active" id="tabChat" role="tab">Chat <span class="count" id="chatCount">0</span></button>
+      <button class="side-tab" id="tabMemory" role="tab">Memory <span class="count" id="memCount">0</span></button>
+      <button class="side-tab" id="tabSettings" role="tab">Setup</button>
+    </div>
+
+    <div class="side-view active" id="viewChat">
+      <div class="side-row">
+        <button id="newChat" class="btn primary block">New conversation</button>
+      </div>
+      <nav class="sessions" id="sessions" aria-label="Conversations"></nav>
+      <div class="side-section">
+        <div class="side-head">
+          <span>Installed models</span>
+          <button id="refreshModels" class="icon-btn" title="Refresh model list">&#8635;</button>
+        </div>
+        <div class="model-list" id="modelList"></div>
+      </div>
+      <div class="side-foot">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">checking</span>
+        <span class="sp"></span>
+      </div>
+    </div>
+
+    <div class="side-view" id="viewMemory">
+      <div class="memory-head">
+        <div class="mem-stats">
+          <div class="mem-stat"><div class="v" id="memStatTotal">0</div><div class="l">Memories</div></div>
+          <div class="mem-stat"><div class="v" id="memStatActive">0</div><div class="l">Active</div></div>
+          <div class="mem-stat"><div class="v" id="memStatPinned">0</div><div class="l">Pinned</div></div>
+          <div class="mem-stat"><div class="v" id="memStatConflict">0</div><div class="l">Conflicts</div></div>
+        </div>
+        <input class="mem-search" id="memSearch" type="text" placeholder="Search memories…" />
+        <div class="mem-toolbar">
+          <button id="memNew" class="btn small">+ Add</button>
+          <button id="memOptimize" class="btn small" title="Compress old memories & forget stale ones">Optimize</button>
+        </div>
+        <div id="memAddForm" class="hidden" style="padding-bottom:8px;">
+          <textarea id="memAddInput" class="mem-search" rows="2" placeholder="What should I remember?"></textarea>
+          <div style="display:flex;gap:6px;">
+            <button id="memAddSave" class="btn small primary" style="flex:1;">Save memory</button>
+            <button id="memAddCancel" class="btn small" style="flex:1;">Cancel</button>
+          </div>
+        </div>
+        <div id="memBusy" class="mem-busy hidden"></div>
+      </div>
+      <div class="mem-list" id="memList"></div>
+      <div class="side-foot">
+        <span class="mem-act" id="memClearAll" style="border:none;">Clear &amp; reset</span>
+        <span class="sp"></span>
+        <span id="memEngine" style="font-size:11px;color:var(--faint);">engine idle</span>
+      </div>
+    </div>
+
+    <div class="side-view" id="viewSettings">
+      <div class="memory-head">
+        <div class="side-head" style="padding:0 2px 8px;"><span>Chat parameters</span></div>
+        <div class="field">
+          <label for="gu">Compute</label>
+          <select id="gu">
+            <option value="cpu">CPU (num_gpu 0)</option>
+            <option value="gpu">GPU</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="tp">Temperature</label>
+          <div class="range-row">
+            <input type="range" id="tp" min="0" max="2" step="0.1" />
+            <span class="val" id="tpVal"></span>
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="np">Max tokens</label>
+          <input type="number" id="np" min="0" step="16" />
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="nw">Context (last N messages)</label>
+          <input type="number" id="nw" min="1" max="64" />
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="th">Thinking (qwen3 deep-reasoning)</label>
+          <select id="th">
+            <option value="off">Off — faster, reliable output</option>
+            <option value="on">On — show reasoning</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="sp">System prompt</label>
+          <textarea id="sp" placeholder="Optional instructions for the model"></textarea>
+        </div>
+        <div class="field shortcuts" style="margin-top:12px;">
+          <label>Shortcuts</label>
+          <span><code>Enter</code> send · <code>Shift+Enter</code> newline · <code>Esc</code> stop · <code>Alt+R</code> regenerate ·
+          <code>Ctrl+N</code> new chat · <code>Ctrl+1..9</code> switch conversation · <code>Ctrl+Enter</code> send</span>
+        </div>
+        <div class="side-head" style="padding:14px 2px 8px;"><span>Memory engine</span></div>
+        <div class="field">
+          <label for="memRecall">Memory recall</label>
+          <select id="memRecall">
+            <option value="on">On — inject relevant memories</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="memExtract">Auto-extract memories</label>
+          <select id="memExtract">
+            <option value="on">On — after each reply</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="memEmbed">Embedding model</label>
+          <select id="memEmbed"></select>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="memTopK">Top-K memories to recall</label>
+          <input type="number" id="memTopK" min="1" max="20" />
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Memory lifecycle</label>
+          <button id="memCompressNow" class="btn block small">Compress &amp; optimize now</button>
+        </div>
+        <div class="shortcuts" style="margin-top:12px;">
+          <label>About</label>
+          <span>Memories are stored locally in this browser (IndexedDB). Nothing leaves this tab. Semantic recall uses a local embedding model via Ollama.</span>
+        </div>
+      </div>
     </div>
   </aside>
 
@@ -314,50 +632,23 @@ textarea#input:focus { border-color: var(--accent); }
     <header class="topbar">
       <div class="conv-title" id="convTitle">New conversation</div>
       <span class="sp"></span>
+      <span class="recall-badge" id="recallBadge" title="Memory recall status"><span class="kd"></span><span id="recallBadgeText">memory off</span></span>
       <select id="modelSelect" aria-label="Active model"></select>
       <button id="settingsBtn" class="btn small">Settings</button>
       <button id="exportBtn" class="btn small" title="Export this conversation to a JSON file">Export</button>
       <button id="importBtn" class="btn small" title="Import a conversation from JSON">Import</button>
+      <button id="themeBtn" class="btn small" title="Toggle light/dark theme">Dark</button>
       <input type="file" id="importFile" accept="application/json" hidden />
     </header>
 
-    <section class="panel hidden" id="settingsPanel">
-      <div class="field">
-        <label for="gu">Compute</label>
-        <select id="gu">
-          <option value="cpu">CPU (num_gpu 0)</option>
-          <option value="gpu">GPU</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="tp">Temperature</label>
-        <div class="range-row">
-          <input type="range" id="tp" min="0" max="2" step="0.1" />
-          <span class="val" id="tpVal"></span>
-        </div>
-      </div>
-      <div class="field">
-        <label for="np">Max tokens</label>
-        <input type="number" id="np" min="0" step="16" />
-      </div>
-      <div class="field">
-        <label for="nw">Context (last N messages)</label>
-        <input type="number" id="nw" min="1" max="64" />
-      </div>
-      <div class="field">
-        <label for="sp">System prompt</label>
-        <textarea id="sp" placeholder="Optional instructions for the model"></textarea>
-      </div>
-      <div class="field shortcuts">
-        <label>Shortcuts</label>
-        <span><code>Enter</code> send · <code>Shift+Enter</code> newline · <code>Esc</code> stop · <code>Alt+R</code> regenerate ·
-        <code>Ctrl+N</code> new chat · <code>Ctrl+1..9</code> switch conversation · <code>Ctrl+Enter</code> send</span>
-      </div>
-    </section>
-
     <div class="messages" id="messages">
       <div class="empty" id="emptyState">
-        <div><b>No active conversation.</b><br />Start a new one or send a message.<br />Everything stays in this tab.</div>
+        <div class="empty-card">
+          <b>No active conversation.</b><br />
+          Start a new one or send a message.<br />
+          Everything stays in this tab — local-first.<br /><br />
+          <span class="empty-kbd">Enter</span> send · <span class="empty-kbd">Shift+Enter</span> newline · <span class="empty-kbd">Esc</span> stop
+        </div>
       </div>
     </div>
 
@@ -365,7 +656,7 @@ textarea#input:focus { border-color: var(--accent); }
       <div class="composer-inner">
         <div class="composer">
           <textarea id="input" rows="1" placeholder="Message a locally installed model…  (Enter to send)"></textarea>
-          <button id="sendBtn" class="btn primary">Send</button>
+          <button id="sendBtn" title="Send" aria-label="Send">&#8599;</button>
           <button id="stopBtn" class="btn" disabled>Stop</button>
         </div>
         <div class="statusline" id="statusLine" aria-live="polite"></div>
@@ -373,6 +664,8 @@ textarea#input:focus { border-color: var(--accent); }
     </footer>
   </main>
 </div>
+
+<div class="mem-toast" id="memToast"></div>
 
 <script>
 (() => {
@@ -387,15 +680,27 @@ const el = {
   sessions: $("#sessions"), modelList: $("#modelList"), refreshModels: $("#refreshModels"),
   statusDot: $("#statusDot"), statusText: $("#statusText"), themeBtn: $("#themeBtn"),
   convTitle: $("#convTitle"), modelSelect: $("#modelSelect"),
-  settingsBtn: $("#settingsBtn"), settingsPanel: $("#settingsPanel"),
+  settingsBtn: $("#settingsBtn"),
   exportBtn: $("#exportBtn"), importBtn: $("#importBtn"), importFile: $("#importFile"),
   messages: $("#messages"), emptyState: $("#emptyState"),
   input: $("#input"), sendBtn: $("#sendBtn"), stopBtn: $("#stopBtn"), statusLine: $("#statusLine"),
-  gu: $("#gu"), tp: $("#tp"), tpVal: $("#tpVal"), np: $("#np"), nw: $("#nw"), sp: $("#sp"),
+  gu: $("#gu"), tp: $("#tp"), tpVal: $("#tpVal"), np: $("#np"), nw: $("#nw"), sp: $("#sp"), th: $("#th"),
+  tabChat: $("#tabChat"), tabMemory: $("#tabMemory"), tabSettings: $("#tabSettings"),
+  viewChat: $("#viewChat"), viewMemory: $("#viewMemory"), viewSettings: $("#viewSettings"),
+  chatCount: $("#chatCount"), memCount: $("#memCount"),
+  memStatTotal: $("#memStatTotal"), memStatActive: $("#memStatActive"),
+  memStatPinned: $("#memStatPinned"), memStatConflict: $("#memStatConflict"),
+  memSearch: $("#memSearch"), memNew: $("#memNew"), memOptimize: $("#memOptimize"),
+  memAddForm: $("#memAddForm"), memAddInput: $("#memAddInput"),
+  memAddSave: $("#memAddSave"), memAddCancel: $("#memAddCancel"),
+  memBusy: $("#memBusy"), memList: $("#memList"), memClearAll: $("#memClearAll"),
+  memEngine: $("#memEngine"), memToast: $("#memToast"),
+  memRecall: $("#memRecall"), memExtract: $("#memExtract"), memEmbed: $("#memEmbed"),
+  memTopK: $("#memTopK"), memCompressNow: $("#memCompressNow"),
+  recallBadge: $("#recallBadge"), recallBadgeText: $("#recallBadgeText"),
 };
 
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const truncate = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);const truncate = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
 const estTokens = (s) => Math.max(1, Math.round((s || "").length / 4));
 const fmtBytes = (b) => {
   if (!b) return "";
@@ -407,10 +712,23 @@ const escapeHtml = (s) => s
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+const memCfg = {
+  get recall() { return localStorage.getItem("memos-recall") !== "off"; },
+  get autoExtract() { return localStorage.getItem("memos-extract") !== "off"; },
+  get conflictCheck() { return localStorage.getItem("memos-conflict") !== "off"; },
+  get embedModel() { return localStorage.getItem("memos-embed") || EMBED_DEFAULT; },
+  get extractModel() { return localStorage.getItem("memos-extract-model") || state.activeModel || ""; },
+  get topK() { return parseInt(localStorage.getItem("memos-topk") || "4", 10) || 4; },
+  get recallThreshold() { return 0.32; },
+  get compressDays() { return parseInt(localStorage.getItem("memos-compress-days") || "30", 10) || 30; },
+  get useGpu() { return state.compute === "gpu"; },
+};
+
 function defaultState() {
   return {
     sessions: [], currentId: null, models: [], activeModel: "",
     temp: 0.7, numPredict: 512, windowN: 12, systemPrompt: "", compute: "cpu",
+    thinking: false,
     theme: localStorage.getItem("qwen-theme") || "light",
   };
 }
@@ -432,7 +750,7 @@ function saveState() {
     const s = {
       sessions: state.sessions, currentId: state.currentId, activeModel: state.activeModel,
       temp: state.temp, numPredict: state.numPredict, windowN: state.windowN,
-      systemPrompt: state.systemPrompt, compute: state.compute,
+      systemPrompt: state.systemPrompt, compute: state.compute, thinking: state.thinking,
     };
     sessionStorage.setItem("qwen-state-v1", JSON.stringify(s));
   } catch {}
@@ -454,6 +772,552 @@ async function api(path, body) {
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
+
+/* ============ MemOS memory engine ============ */
+
+const DB_NAME = "memos-phase2";
+const DB_VER = 1;
+const EMBED_DEFAULT = "nomic-embed-text";
+
+let memDB = null;
+let memCache = null;
+
+function openMemDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("memories")) {
+        const store = db.createObjectStore("memories", { keyPath: "id" });
+        store.createIndex("by_importance", "importance_score");
+        store.createIndex("by_status", "status");
+        store.createIndex("by_created", "createdAt");
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function txStore(mode) {
+  return memDB.transaction("memories", mode).objectStore("memories");
+}
+
+function idbReq(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function memInit() {
+  try {
+    memDB = await openMemDB();
+    memCache = await idbReq(txStore("readonly").getAll());
+    if (!memCache) memCache = [];
+  } catch (e) {
+    memDB = null;
+    memCache = [];
+    console.error("MemOS memory store unavailable:", e);
+  }
+  updateMemStats();
+  renderMemoryList();
+}
+
+function memPersist() {
+  if (!memDB) return;
+  memCache.forEach((m) => { try { txStore("readwrite").put(m); } catch {} });
+}
+
+async function memAll() {
+  if (!memCache) memCache = [];
+  return memCache;
+}
+
+function memSave(m) {
+  memCache = memCache.filter((x) => x.id !== m.id);
+  memCache.push(m);
+  try { txStore("readwrite").put(m); } catch {}
+}
+
+function memDelete(id) {
+  memCache = memCache.filter((x) => x.id !== id);
+  try { txStore("readwrite").delete(id); } catch {}
+}
+
+function memVector(m) {
+  if (m && Array.isArray(m.embedding) && m.embedding.length) return m.embedding;
+  return null;
+}
+
+function cosineSim(a, b) {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+async function embedText(text) {
+  const model = memCfg.embedModel;
+  const res = await fetch(OLLAMA + "/api/embed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, input: text }),
+  });
+  if (!res.ok) throw new Error("embed HTTP " + res.status);
+  const data = await res.json();
+  const emb = data.embeddings && data.embeddings[0];
+  if (!emb) throw new Error("no embedding returned");
+  return emb;
+}
+
+async function memEmbed(m) {
+  if (memVector(m)) return m.embedding;
+  try {
+    m.embedding = await embedText(m.content);
+    memSave(m);
+    return m.embedding;
+  } catch (e) {
+    return null;
+  }
+}
+
+function calcImportance(m, now) {
+  const createdAt = (m.createdAt != null ? m.createdAt : Date.now());
+  const daysOld = Math.max(0, (now - createdAt) / 86400000);
+  const recency = Math.max(0.1, 1.0 - (daysOld * 0.05));
+  const frequency = Math.min(2.0, 1.0 + ((m.accessCount || 0) * 0.1));
+  const entities = Math.min(1.5, 1.0 + ((m.entities || []).length * 0.1));
+  const confidence = m.confidence != null ? m.confidence : 1.0;
+  const pin = m.pinned ? 2.0 : 0.0;
+  return Math.round(((recency * 0.3) + (frequency * 0.3) + (entities * 0.2) + (confidence * 0.2) + pin) * 1000) / 1000;
+}
+
+function memAddRaw(content, opts) {
+  opts = opts || {};
+  const now = Date.now();
+  const m = {
+    id: uid(),
+    content: content,
+    tags: opts.tags || [],
+    entities: opts.entities || [],
+    source: opts.source || "manual",
+    status: "active",
+    importance_score: opts.importance_score != null ? opts.importance_score : 1.0,
+    confidence: opts.confidence != null ? opts.confidence : 1.0,
+    accessCount: 0,
+    pinned: !!opts.pinned,
+    conflict: !!opts.conflict,
+    conflictInfo: opts.conflictInfo || "",
+    project: opts.project || "",
+    collection: opts.collection || "",
+    createdAt: now,
+    updatedAt: now,
+  };
+  memSave(m);
+  return m;
+}
+
+async function memAddAndEmbed(content, opts) {
+  const m = memAddRaw(content, opts);
+  await memEmbed(m);
+  updateMemStats();
+  renderMemoryList();
+  return m;
+}
+
+function memDedupe(existing, contentStr) {
+  const key = contentStr.toLowerCase().trim();
+  const hit = existing.find((m) => (m.content || "").toLowerCase().trim() === key);
+  if (hit) {
+    hit.accessCount = (hit.accessCount || 0) + 1;
+    hit.confidence = Math.min(1.0, (hit.confidence != null ? hit.confidence : 0.8) + 0.05);
+    hit.importance_score = calcImportance(hit, Date.now());
+    hit.updatedAt = Date.now();
+    memSave(hit);
+    return hit;
+  }
+  return null;
+}
+
+async function memConflictCheck(newContent) {
+  if (!memCfg.conflictCheck) return { detected: false, info: "" };
+  const existing = (await memAll())
+    .filter((m) => m.status === "active" && m.conflict !== true)
+    .slice(-12);
+  if (!existing.length) return { detected: false, info: "" };
+  const existingTexts = existing.map((m) => "- " + m.content).join("\n");
+  const prompt = "Given the existing user memories:\n" + existingTexts +
+    "\n\nNew statement: \"" + newContent + "\"\n\n" +
+    "Does the new statement contradict any existing memory?\n" +
+    "If YES, respond: CONFLICT: <memory id unused> | Explanation: <reason>\nIf NO, respond: NO CONFLICT";
+  try {
+    const response = await ollamaChatOnce(prompt, { temperature: 0.1, num_predict: 120 });
+    if (/CONFLICT\s*:/i.test(response || "")) {
+      const expl = response.replace(/CONFLICT[\s\S]*?\|\s*/i, "").trim();
+      return { detected: true, info: expl || response };
+    }
+  } catch {}
+  return { detected: false, info: "" };
+}
+
+async function ollamaChatOnce(prompt, options) {
+  const opts = {};
+  if (state.compute !== "gpu") opts.num_gpu = 0;
+  if (options) Object.assign(opts, options);
+  const res = await fetch(OLLAMA + "/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: (localStorage.getItem("memos-extract-model") && localStorage.getItem("memos-extract-model").trim()) || state.activeModel, messages: [{ role: "user", content: prompt }], stream: false, think: false, options: opts }),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  return (data.message && data.message.content) || "";
+}
+
+function parseMemJSON(text) {
+  try { return JSON.parse(text); } catch {}
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch {} }
+  return null;
+}
+
+async function memExtractFromChat(session) {
+  if (!memCfg.autoExtract) { setMemEngine("extraction off"); return null; }
+  const chatMsgs = (session.messages || [])
+    .filter((m) => !m.streaming && m.content && !/^\s*\[/.test(m.content))
+    .slice(-8);
+  if (!chatMsgs.length) return null;
+  const transcript = chatMsgs.map((m) => (m.role === "user" ? "User: " : "Assistant: ") + m.content).join("\n");
+
+  const prompt = [
+    "You are an expert AI Memory Extraction System. Read the conversation transcript below.",
+    "",
+    "CONVERSATION TRANSCRIPT:",
+    transcript,
+    "",
+    "CRITICAL INSTRUCTIONS:",
+    '- IGNORE all greetings, pleasantries, small talk, and chit-chat (e.g., "hi", "hello", "how are you", "thanks", "bye").',
+    "- EXTRACT only meaningful knowledge, facts, user details, projects, technologies, decisions, preferences, goals, and skills.",
+    "- Output ONLY a valid JSON object (no commentary) with this exact shape:",
+    '{ "summary": "concise 1-2 sentence memory summary", "facts": ["fact 1", "fact 2"], "projects": ["Project"], "technologies": ["Tech"], "user_preferences": ["preference"], "goals": ["goal"], "skills": ["skill"], "important_decisions": ["decision"] }',
+    'If there is nothing meaningful to remember, return { "summary": "", "facts": [], "projects": [], "technologies": [], "user_preferences": [], "goals": [], "skills": [], "important_decisions": [] }'
+  ].join("\n");
+
+  setMemEngine("extracting…");
+  setStatusLine([{ text: "memory · extracting…", color: "var(--muted)" }]);
+  let llmText;
+  try {
+    llmText = await ollamaChatOnce(prompt, { temperature: 0.2, num_predict: 400 });
+  } catch (e) {
+    setMemEngine("extraction failed: " + e.message);
+    return null;
+  }
+  const data = parseMemJSON(llmText);
+  if (!data) { setMemEngine("extraction unparseable"); return null; }
+
+  const existing = await memAll();
+  let createdCount = 0, dupCount = 0, conflictCount = 0;
+  const createdIds = [];
+
+  function ingest(content, tags, collection, source) {
+    if (!content || content.trim().length < 6) return;
+    const packed = content.trim().replace(/^(summary|decision|preference|goal):\s*/i, "");
+    const prefix = { decision: "Decision: ", preference: "Preference: ", goal: "Goal: " }[tags[0]] || "";
+    const final = prefix + packed;
+    if (memDedupe(existing, final)) { dupCount++; return; }
+    const mm = memAddRaw(final, { tags, collection, source });
+    createdIds.push(mm.id);
+    return mm;
+  }
+
+  if (data.summary && data.summary.trim().length > 10) {
+    const s = memDedupe(existing, data.summary.trim());
+    if (s) dupCount++;
+    else { const mm = memAddRaw(data.summary.trim(), { tags: ["summary"], collection: "Summary", source: "chat_analysis" }); createdIds.push(mm.id); createdCount++; }
+  }
+  (data.facts || []).forEach((f) => { if (ingest(f, ["fact"], "Facts", "chat_analysis")) createdCount++; });
+  (data.projects || []).forEach((p) => { if (ingest(p, ["project"], "Projects", "chat_analysis")) createdCount++; });
+  (data.technologies || []).forEach((t) => { if (ingest(t, ["tech"], "Coding", "chat_analysis")) createdCount++; });
+  (data.user_preferences || []).forEach((p) => { if (ingest(p, ["preference"], "Personal", "chat_analysis")) createdCount++; });
+  (data.goals || []).forEach((g) => { if (ingest(g, ["goal"], "Personal", "chat_analysis")) createdCount++; });
+  (data.skills || []).forEach((sk) => { if (ingest(sk, ["skill"], "Personal", "chat_analysis")) createdCount++; });
+  (data.important_decisions || []).forEach((d) => { if (ingest(d, ["decision"], "Coding", "chat_analysis")) createdCount++; });
+
+  // asynchronous embedding + conflict scanning for newly created memories
+  (async () => {
+    for (const id of createdIds) {
+      const m = memCache.find((x) => x.id === id);
+      if (!m) continue;
+      await memEmbed(m);
+      const c = await memConflictCheck(m.content);
+      if (c.detected) { m.conflict = true; m.conflictInfo = c.info; memSave(m); conflictCount++; }
+      m.importance_score = calcImportance(m, Date.now());
+      memSave(m);
+    }
+    updateMemStats();
+    renderMemoryList();
+    setMemEngine("memory saved");
+    const lines = [
+      createdCount ? "remembered " + createdCount : "nothing new",
+      dupCount ? dupCount + " dup" : "",
+      conflictCount ? conflictCount + " conflict" : "",
+    ].filter(Boolean).join(" · ");
+    setStatusLine([{ text: "memory · " + lines, color: "var(--accent)" }]);
+    memToast("Qwen recorded it — " + lines);
+  })();
+  return { createdCount, dupCount, conflictCount };
+}
+
+async function memRecall(promptText) {
+  if (!memCfg.recall) return { prompt: promptText, memories: [] };
+  const all = (await memAll()).filter((m) => m.status === "active");
+  if (!all.length) return { prompt: promptText, memories: [] };
+  let qv;
+  try { qv = await embedText(promptText); } catch { return { prompt: promptText, memories: [] }; }
+  const scored = [];
+  for (const m of all) {
+    const mv = memVector(m) || await memEmbed(m);
+    const score = mv ? cosineSim(qv, mv) : 0;
+    if (score >= memCfg.recallThreshold) scored.push({ m, score: score + (m.pinned ? 0.15 : 0) });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, memCfg.topK);
+  if (!top.length) return { prompt: promptText, memories: [] };
+
+  top.forEach(({ m }) => { m.accessCount = (m.accessCount || 0) + 1; m.importance_score = calcImportance(m, Date.now()); memSave(m); });
+
+  const lines = top.map(({ m, score }) => "• " + m.content + " (relevance " + score.toFixed(2) + ")").join("\n");
+  const context = "=== RELEVANT LONG-TERM MEMORIES ===\n" + lines +
+    "\n\nInstructions: Personalize your response using these relevant memories where appropriate.";
+  const augmented = context + "\n\nUser Question: " + promptText;
+  return { prompt: augmented, memories: top.map((t) => ({ content: t.m.content, score: t.score })) };
+}
+
+function memLifecycle() {
+  const now = Date.now();
+  const all = memCache || [];
+  const active = all.filter((m) => m.status === "active");
+  const cutoff = now - (memCfg.compressDays * 86400000);
+  let archived = 0;
+  active.forEach((m) => {
+    if (!m.pinned && m.importance_score < 0.3 && (now - m.createdAt) > 7 * 86400000) {
+      m.status = "archived"; memSave(m);
+    }
+  });
+  // adaptive forgetting: low importance archived -> forgotten
+  let forgotten = 0;
+  all.forEach((m) => {
+    if (m.status === "archived" && m.importance_score < 0.25 && (now - (m.updatedAt || m.createdAt)) > 14 * 86400000) {
+      m.status = "forgotten"; memSave(m); forgotten++;
+    }
+  });
+  renderMemoryList();
+  updateMemStats();
+  return { archived, forgotten };
+}
+
+/* memory UI bindings */
+function updateMemStats() {
+  const all = memCache || [];
+  const active = all.filter((m) => m.status === "active");
+  const pinned = all.filter((m) => m.pinned);
+  const conflict = all.filter((m) => m.conflict);
+  el.memCount.textContent = all.length;
+  el.chatCount.textContent = state.sessions.length;
+  el.memStatTotal.textContent = all.length;
+  el.memStatActive.textContent = active.length;
+  el.memStatPinned.textContent = pinned.length;
+  el.memStatConflict.textContent = conflict.length;
+  el.recallBadge.classList.toggle("on", !!memCfg.recall);
+  el.recallBadgeText.textContent = memCfg.recall ? ("recall · " + topKCombo()) : "memory off";
+}
+
+function topKCombo() { return memCfg.topK; }
+
+function setMemEngine(text) {
+  if (el.memEngine) el.memEngine.textContent = text;
+  if (el.memBusy) el.memBusy.textContent = /extract|optimiz|recall|embed/i.test(text || "") ? text : "";
+}
+
+let memToastTimer = null;
+function memToast(msg) {
+  const t = el.memToast;
+  if (!t) return;
+  t.innerHTML = msg;
+  t.classList.add("show");
+  clearTimeout(memToastTimer);
+  memToastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+function memFilterLabel(m) {
+  const labels = { active: "", archived: "archived", forgotten: "forgotten" };
+  return labels[m.status] || "";
+}
+
+function renderMemoryList() {
+  if (!el.memList) return;
+  const query = (el.memSearch ? el.memSearch.value || "" : "").toLowerCase();
+  let items = (memCache || []).slice();
+  items.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.importance_score || 0) - (a.importance_score || 0));
+  if (query) items = items.filter((m) => (m.content + " " + (m.tags || []).join(" ")).toLowerCase().includes(query));
+
+  el.memList.innerHTML = "";
+  if (!items.length) {
+    const e = document.createElement("div");
+    e.className = "mem-empty";
+    e.textContent = query ? "No memories match that search." : "No memories yet. Ask a question or enable auto-extraction and each conversation will teach you here.";
+    el.memList.appendChild(e);
+    updateMemStats();
+    return;
+  }
+  items.forEach((m) => {
+    const box = document.createElement("div");
+    box.className = "mem-item" +
+      (m.pinned ? " pinned" : "") +
+      (m.conflict ? " conflict" : "") +
+      (m.status === "forgotten" ? " forgotten" : "");
+
+    const top = document.createElement("div");
+    top.className = "mem-top";
+    const pin = document.createElement("button");
+    pin.className = "mem-pin" + (m.pinned ? " on" : "");
+    pin.textContent = m.pinned ? "📌" : "○";
+    pin.title = m.pinned ? "Unpin" : "Pin (always recalled)";
+    pin.addEventListener("click", () => { m.pinned = !m.pinned; memSave(m); renderMemoryList(); updateMemStats(); });
+    top.appendChild(pin);
+
+    const text = document.createElement("div");
+    text.className = "mem-text";
+    text.textContent = m.content;
+    top.appendChild(text);
+    box.appendChild(top);
+
+    const tagsRow = document.createElement("div");
+    tagsRow.className = "mem-tags";
+    (m.tags || []).forEach((t) => {
+      const tag = document.createElement("span");
+      tag.className = "mem-tag";
+      tag.textContent = t;
+      if (t === "conflict_flagged" || (m.conflict && t === "fact")) tag.classList.add("conflict");
+      tagsRow.appendChild(tag);
+    });
+    if (m.conflict) {
+      const tag = document.createElement("span");
+      tag.className = "mem-tag conflict";
+      tag.textContent = "conflict";
+      tagsRow.appendChild(tag);
+    }
+    const fl = memFilterLabel(m);
+    if (fl) {
+      const tag = document.createElement("span");
+      tag.className = "mem-tag";
+      tag.textContent = fl;
+      tagsRow.appendChild(tag);
+    }
+    box.appendChild(tagsRow);
+
+    const row = document.createElement("div");
+    row.className = "mem-bar-row";
+    const lbl = document.createElement("span");
+    lbl.className = "mem-imp-label";
+    lbl.textContent = "importance " + (m.importance_score != null ? m.importance_score.toFixed(2) : "1.00");
+    const bar = document.createElement("div");
+    bar.className = "mem-imp";
+    const fill = document.createElement("span");
+    const imp = m.importance_score != null ? m.importance_score : 1;
+    const pct = Math.min(100, Math.round(imp * 40));
+    fill.style.width = pct + "%";
+    if (imp >= 0.8) fill.className = "imp-hi";
+    else if (imp <= 0.4) fill.className = "imp-low";
+    bar.appendChild(fill);
+    row.appendChild(lbl); row.appendChild(bar);
+    box.appendChild(row);
+
+    const foot = document.createElement("div");
+    foot.className = "mem-foot";
+    const conf = document.createElement("span");
+    conf.className = "mem-act";
+    conf.textContent = "confidence " + (m.confidence != null ? m.confidence.toFixed(2) : "1.00");
+    foot.appendChild(conf);
+    const del = document.createElement("button");
+    del.className = "mem-act danger";
+    del.textContent = "delete";
+    del.addEventListener("click", () => { memDelete(m.id); renderMemoryList(); updateMemStats(); });
+    foot.appendChild(del);
+    box.appendChild(foot);
+
+    if (m.conflict && m.conflictInfo) {
+      const ci = document.createElement("div");
+      ci.style.cssText = "font-size:11px;color:var(--danger);margin-top:6px;word-break:break-word;";
+      ci.textContent = "⚠ " + m.conflictInfo;
+      box.appendChild(ci);
+    }
+
+    el.memList.appendChild(box);
+  });
+  updateMemStats();
+}
+
+function memAddManual() {
+  const content = (el.memAddInput && el.memAddInput.value || "").trim();
+  if (!content) { memToast("Type a memory to store."); return; }
+  setMemEngine("embedding…");
+  el.memAddForm.classList.add("hidden");
+  el.memAddInput.value = "";
+  memAddAndEmbed(content).then(() => {
+    setMemEngine("memory saved");
+    memToast("<b>Saved</b> a memory.");
+  });
+}
+
+async function memOptimizeNow() {
+  setMemEngine("optimizing…");
+  el.memBusy.classList.remove("hidden");
+  const active = (await memAll()).filter((m) => m.status === "active");
+  const cutoff = Date.now() - (memCfg.compressDays * 86400000);
+  const old = active.filter((m) => m.createdAt < cutoff && !m.pinned);
+  let archivedCount = 0, forgottenCount = 0;
+
+  // compression: summarize olds via LLM
+  if (old.length >= 2) {
+    const texts = old.map((m) => "- " + m.content).join("\n");
+    const prompt = "Compress the following older memories into a single concise, high-density long-term summary (2-3 sentences):\n\nMEMORIES:\n" + texts;
+    try {
+      const note = await ollamaChatOnce(prompt, { temperature: 0.3, num_predict: 200 });
+      if (note && note.trim().length > 10) {
+        const m = memAddRaw("Compressed Archive: " + note.trim(), { tags: ["compressed_archive", "summary"], source: "lifecycle_compression", importance_score: 1.2 });
+        await memEmbed(m);
+      }
+    } catch {}
+    old.forEach((m) => { m.status = "archived"; memSave(m); archivedCount++; });
+  }
+
+  // adaptive forgetting
+  (await memAll()).forEach((m) => {
+    if (m.status === "archived" && m.importance_score < 0.25 &&
+        (Date.now() - (m.updatedAt || m.createdAt)) > 14 * 86400000) {
+      m.status = "forgotten"; memSave(m); forgottenCount++;
+    }
+  });
+
+  updateMemStats();
+  renderMemoryList();
+  el.memBusy.classList.add("hidden");
+  setMemEngine("optimized");
+  memToast("Optimized — archived " + archivedCount + ", forgot " + forgottenCount + ".");
+}
+
+function memClearAll() {
+  if (!confirm("Delete ALL remembered memories? This cannot be undone.")) return;
+  memCache = [];
+  memDB.transaction("memories", "readwrite").objectStore("memories").clear();
+  updateMemStats();
+  renderMemoryList();
+  memToast("Memory store cleared.");
+}
+
 
 async function fetchModels() {
   try {
@@ -478,6 +1342,7 @@ async function fetchModels() {
   }
   renderModelList();
   renderModelSelect();
+  populateEmbedModels();
 }
 
 function renderModelSelect() {
@@ -605,15 +1470,56 @@ function renderSessions() {
   });
 }
 
+function inlineMd(text) {
+  let t = escapeHtml(text);
+  t = t.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  t = t.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  t = t.replace(/~~([^~\n]+)~~/g, "<del>$1</del>");
+  t = t.replace(/\[([^\]]+)]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return t;
+}
+
 function renderMarkdown(text) {
-  let out = escapeHtml(text);
-  out = out.replace(/```([\s\S]*?)```/g, (_, code) => "<pre><code>" + code.trim() + "</code></pre>");
-  out = out.replace(/`([^`\n]+)`/g, "<code>$1</code>");
-  out = out.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
-  out = out.replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  out = out.replace(/\[([^\]]+)]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  out = out.replace(/\n/g, "<br>");
-  return out;
+  const blocks = [];
+  const t = String(text).replace(/```([\s\S]*?)```/g, (_, code) => {
+    blocks.push("<pre><code>" + escapeHtml(code.trim()) + "</code></pre>");
+    return "\u0000B" + (blocks.length - 1) + "\u0000";
+  });
+  const html = [];
+  let inList = null;
+  let para = null;
+  const flushPara = () => {
+    if (para != null) { html.push("<p>" + para.join("<br>") + "</p>"); para = null; }
+  };
+  const pushList = (tag) => {
+    if (inList !== tag) {
+      if (inList) html.push("</" + inList + ">");
+      inList = tag;
+      html.push("<" + tag + ">");
+    }
+  };
+  for (const raw of t.split("\n")) {
+    const line = raw;
+    const trim = line.trim();
+    const ph = trim.match(/^\u0000B(\d+)\u0000$/);
+    if (ph) { flushPara(); if (inList) { html.push("</" + inList + ">"); inList = null; } html.push(blocks[Number(ph[1])]); continue; }
+    if (trim === "") { flushPara(); if (inList) { html.push("</" + inList + ">"); inList = null; } continue; }
+    const h = trim.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { flushPara(); if (inList) { html.push("</" + inList + ">"); inList = null; } const lvl = Math.min(6, h[1].length); html.push("<h" + lvl + ">" + inlineMd(h[2]) + "</h" + lvl + ">"); continue; }
+    const ul = trim.match(/^[-*]\s+(.*)$/);
+    if (ul) { flushPara(); pushList("ul"); html.push("<li>" + inlineMd(ul[1]) + "</li>"); continue; }
+    const ol = trim.match(/^\d+[.)]\s+(.*)$/);
+    if (ol) { flushPara(); pushList("ol"); html.push("<li>" + inlineMd(ol[1]) + "</li>"); continue; }
+    const q = trim.match(/^>\s?(.*)$/);
+    if (q) { flushPara(); if (inList) { html.push("</" + inList + ">"); inList = null; } html.push("<blockquote>" + inlineMd(q[1]) + "</blockquote>"); continue; }
+    if (inList) { html.push("</" + inList + ">"); inList = null; }
+    if (para == null) para = [];
+    para.push(inlineMd(line));
+  }
+  flushPara();
+  if (inList) html.push("</" + inList + ">");
+  return html.join("\n").replace(/\u0000B(\d+)\u0000/g, (_, i) => blocks[Number(i)] || "");
 }
 
 function buildAssistantMessageDom(m, actions) {
@@ -650,7 +1556,7 @@ function buildAssistantMessageDom(m, actions) {
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-  bubble.innerHTML = m.streaming ? escapeHtml(m.content) : renderMarkdown(m.content);
+  bubble.innerHTML = m.streaming ? renderMarkdown(m.content || "") : renderMarkdown(m.content);
   if (m.streaming) {
     const cur = document.createElement("span");
     cur.className = "cursor";
@@ -665,7 +1571,7 @@ function buildAssistantMessageDom(m, actions) {
   if (m.meta && !m.streaming) {
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = m.meta;
+    meta.textContent = fmtMeta(m);
     actionsRow.appendChild(meta);
   }
   if (actionsRow.children.length) body.appendChild(actionsRow);
@@ -696,6 +1602,10 @@ function renderMessages() {
       bubble.className = "bubble";
       bubble.textContent = m.content;
       body.appendChild(bubble);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = fmtMeta(m);
+      body.appendChild(meta);
       const actionsRow = document.createElement("div");
       actionsRow.className = "msg-actions";
       const copy = makeMini("Copy", () => copyText(m.content));
@@ -733,6 +1643,18 @@ function copyText(t) {
   if (navigator.clipboard) navigator.clipboard.writeText(t);
 }
 
+function fmtTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+function fmtMeta(m) {
+  const lines = [fmtTime(m.ts || m.createdAt) + (m.meta ? " · " + m.meta : "")];
+  return lines.join("");
+}
+
 function updateStreamingDom(m) {
   const wrap = document.getElementById("msg-" + m.id);
   if (!wrap) return;
@@ -740,7 +1662,7 @@ function updateStreamingDom(m) {
   if (rb) rb.textContent = m.reasoning;
   const bubble = wrap.querySelector(".bubble");
   if (bubble) {
-    bubble.innerHTML = escapeHtml(m.content);
+    bubble.innerHTML = renderMarkdown(m.content || "");
     if (m.streaming) {
       const cur = document.createElement("span");
       cur.className = "cursor";
@@ -799,7 +1721,22 @@ function send() {
   autoResize();
   renderSessions();
   renderMessages();
-  streamTurn(s, text);
+  streamTurnWithRecall(s, text);
+}
+
+async function streamTurnWithRecall(s, promptText) {
+  try {
+    const res = await memRecall(promptText);
+    if (res && res.memories && res.memories.length) {
+      setStatusLine([
+        { text: "recalling", color: "var(--accent)" },
+        { text: res.memories.length + " relevant memories injected" },
+      ]);
+    }
+    streamTurn(s, (res && res.prompt) || promptText);
+  } catch (e) {
+    streamTurn(s, promptText);
+  }
 }
 
 function inputMissing() {
@@ -815,7 +1752,7 @@ function regenerate() {
   const prompt = s.messages[i].content;
   s.messages = s.messages.slice(0, i + 1);
   renderMessages();
-  streamTurn(s, prompt);
+  streamTurnWithRecall(s, prompt);
 }
 
 async function streamTurn(s, promptText) {
@@ -837,6 +1774,8 @@ async function streamTurn(s, promptText) {
   if (np > 0) options.num_predict = np;
 
   const payload = { model: state.activeModel, messages: buildPayload(s), stream: true, options };
+  if (state.thinking) payload.think = true;
+  else payload.think = false;
   if (state.systemPrompt.trim()) payload.system = state.systemPrompt.trim();
 
   el.sendBtn.disabled = true;
@@ -912,7 +1851,7 @@ async function streamTurn(s, promptText) {
     msg.content = text || "(no output)";
     msg.reasoning = reasoning;
     const elapsed = ((Date.now() - activeStream.startedAt) / 1000).toFixed(1);
-    const args = [elapsed, msg.content.split("\n").length];
+    msg.ts = msg.ts || Date.now();
     msg.meta = estTokens(msg.content + reasoning) + " tokens · " + elapsed + "s";
     activeStream = null;
     renderMessages();
@@ -926,6 +1865,7 @@ async function streamTurn(s, promptText) {
       { text: "done", color: "var(--muted)" },
       { text: state.activeModel + " · " + estTokens(text + reasoning) + " tokens · " + elapsed + "s" },
     ]);
+    if (memCfg.autoExtract && s && s.messages.length) memExtractFromChat(s);
   }
 }
 
@@ -1015,6 +1955,25 @@ function importSession(file) {
 
 /* ---------- settings / theme ---------- */
 
+function populateEmbedModels() {
+  const embModels = state.models.filter((m) => EMBEDDING_HINT.test(m.name)).map((m) => m.name);
+  if (!embModels.length) return null;
+  el.memEmbed.innerHTML = "";
+  embModels.forEach((name) => {
+    const o = document.createElement("option");
+    o.value = name; o.textContent = name;
+    el.memEmbed.appendChild(o);
+  });
+  if (embModels.includes(memCfg.embedModel)) el.memEmbed.value = memCfg.embedModel;
+  else {
+    const first = document.createElement("option");
+    first.value = embModels[0]; first.textContent = embModels[0] + " (first available)";
+    el.memEmbed.appendChild(first);
+    el.memEmbed.value = embModels[0];
+  }
+  return embModels;
+}
+
 function syncSettingsUI() {
   el.gu.value = state.compute;
   el.tp.value = state.temp;
@@ -1022,6 +1981,12 @@ function syncSettingsUI() {
   el.np.value = state.numPredict;
   el.nw.value = state.windowN;
   el.sp.value = state.systemPrompt;
+  el.th.value = state.thinking ? "on" : "off";
+  el.memRecall.value = memCfg.recall ? "on" : "off";
+  el.memExtract.value = memCfg.autoExtract ? "on" : "off";
+  el.memTopK.value = memCfg.topK;
+  populateEmbedModels();
+  updateMemStats();
 }
 
 function applyTheme() {
@@ -1037,6 +2002,55 @@ el.sessions.addEventListener("click", (e) => {
   if (e.target.classList && e.target.classList.contains("del")) return;
 });
 el.refreshModels.addEventListener("click", () => { fetchModels(); refreshLoaded(); });
+
+const SIDE_TABS = [
+  ["tabChat", "viewChat"], ["tabMemory", "viewMemory"], ["tabSettings", "viewSettings"],
+];
+function switchSideTab(activeTab) {
+  SIDE_TABS.forEach(([tabId, viewId]) => {
+    document.getElementById(tabId).classList.toggle("active", tabId === activeTab);
+    document.getElementById(viewId).classList.toggle("active", tabId === activeTab);
+  });
+}
+el.tabChat.addEventListener("click", () => switchSideTab("tabChat"));
+el.tabMemory.addEventListener("click", () => { switchSideTab("tabMemory"); renderMemoryList(); });
+el.tabSettings.addEventListener("click", () => { switchSideTab("tabSettings"); syncSettingsUI(); });
+
+el.memSearch.addEventListener("input", renderMemoryList);
+el.memNew.addEventListener("click", () => {
+  el.memAddForm.classList.toggle("hidden");
+  if (!el.memAddForm.classList.contains("hidden")) el.memAddInput.focus();
+});
+el.memAddCancel.addEventListener("click", () => {
+  el.memAddForm.classList.add("hidden");
+  el.memAddInput.value = "";
+});
+el.memAddSave.addEventListener("click", memAddManual);
+el.memAddInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); memAddManual(); }
+  if (e.key === "Escape") { el.memAddForm.classList.add("hidden"); el.memAddInput.value = ""; }
+});
+el.memOptimize.addEventListener("click", memOptimizeNow);
+el.memCompressNow.addEventListener("click", memOptimizeNow);
+el.memClearAll.addEventListener("click", memClearAll);
+
+el.memRecall.addEventListener("change", () => {
+  localStorage.setItem("memos-recall", el.memRecall.value === "on" ? "on" : "off");
+  updateMemStats();
+  memToast(el.memRecall.value === "on" ? "Memory recall <b>on</b>." : "Memory recall off.");
+});
+el.memExtract.addEventListener("change", () => {
+  localStorage.setItem("memos-extract", el.memExtract.value === "on" ? "on" : "off");
+  memToast(el.memExtract.value === "on" ? "Auto-extraction <b>on</b>." : "Auto-extraction off.");
+});
+el.memEmbed.addEventListener("change", () => {
+  localStorage.setItem("memos-embed", el.memEmbed.value || EMBED_DEFAULT);
+  memToast("Embedding model set.");
+});
+el.memTopK.addEventListener("change", () => {
+  localStorage.setItem("memos-topk", el.memTopK.value);
+  updateMemStats();
+});
 el.sendBtn.addEventListener("click", send);
 el.stopBtn.addEventListener("click", stop);
 el.input.addEventListener("keydown", (e) => {
@@ -1084,10 +2098,11 @@ el.modelSelect.addEventListener("change", () => {
 
 el.settingsBtn.addEventListener("click", () => {
   syncSettingsUI();
-  el.settingsPanel.classList.toggle("hidden");
+  switchSideTab("tabSettings");
+  if (window.innerWidth <= 860) document.body.classList.add("sidebar-open");
 });
 
-[el.gu, el.tp, el.np, el.nw, el.sp].forEach((c) => {
+[el.gu, el.tp, el.np, el.nw, el.sp, el.th].forEach((c) => {
   c.addEventListener("input", () => {
     if (c === el.gu) state.compute = el.gu.value;
     else if (c === el.tp) {
@@ -1097,6 +2112,7 @@ el.settingsBtn.addEventListener("click", () => {
     else if (c === el.np) state.numPredict = el.np.value;
     else if (c === el.nw) state.windowN = parseInt(el.nw.value, 10) || 1;
     else if (c === el.sp) state.systemPrompt = el.sp.value;
+    else if (c === el.th) state.thinking = el.th.value === "on";
     saveState();
   });
 });
@@ -1134,6 +2150,14 @@ if (!state.sessions.length) {
 syncSettingsUI();
 el.input.focus();
 fetchModels();
+memInit();
+setTimeout(() => {
+  const last = parseInt(localStorage.getItem("memos-lifecycle-at") || "0", 10);
+  if (!last || Date.now() - last > 60 * 60 * 1000) {
+    memLifecycle();
+    localStorage.setItem("memos-lifecycle-at", String(Date.now()));
+  }
+}, 3000);
 setInterval(() => { if (document.visibilityState === "visible") refreshLoaded(); }, 15000);
 
 })();
