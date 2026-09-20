@@ -30,6 +30,12 @@ MEMORIES:
 """
         summary_note = await ollama_service.generate_chat(prompt=prompt)
 
+        # Guard: abort compression if LLM returned unusable output.
+        # Without this, old memories would be archived with no compressed replacement stored.
+        if not summary_note or summary_note.startswith("Failed") or len(summary_note.strip()) < 20:
+            print(f"[LifecycleEngine] Compression aborted for user {user_id}: LLM returned unusable summary.")
+            return 0
+
         # Store compressed canonical note
         if summary_note and not summary_note.startswith("Failed"):
             await memory_service.create_and_index_memory(

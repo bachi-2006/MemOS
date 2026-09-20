@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 from app.database.session import Base, get_db
 from app.main import app
 from app.models.models import User, Chat, Message
+from app.api.proxy import resolve_proxy_user
+from fastapi import HTTPException
 
 from sqlalchemy.pool import StaticPool
 
@@ -40,10 +42,7 @@ client = TestClient(app)
 
 def test_v1_models_endpoint():
     """Phase 3 Test: Verify GET /v1/models returns OpenAI standard format"""
-    mock_models = [
-        {"name": "qwen3.5:9b", "size": 5000000000},
-        {"name": "llama3:latest", "size": 4700000000}
-    ]
+    mock_models = ["qwen3.5:9b", "llama3:latest"]
     with patch("app.services.ollama_service.ollama_service.list_models", new_callable=AsyncMock) as mock_list:
         mock_list.return_value = mock_models
         response = client.get("/v1/models")
@@ -53,6 +52,21 @@ def test_v1_models_endpoint():
         assert len(data["data"]) == 2
         assert data["data"][0]["id"] == "qwen3.5:9b"
         assert data["data"][1]["id"] == "llama3:latest"
+
+
+def test_companion_mode_does_not_trust_forwarded_loopback_header():
+    """A remote peer must not become local by forging X-Forwarded-For."""
+    db = next(override_get_db())
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_proxy_user(
+            db=db,
+            x_user_id=None,
+            requested_user=None,
+            authorization=None,
+            client_host="203.0.113.10",
+        )
+    assert exc_info.value.status_code == 403
+
 
 def test_v1_chat_completions_non_streaming():
     """Phase 3 Test: Verify POST /v1/chat/completions with stream=False"""
@@ -206,4 +220,3 @@ def test_api_v1_ollama_stream_endpoint():
         assert "data: " in content
         assert "Ollama " in content
         assert "active." in content
-

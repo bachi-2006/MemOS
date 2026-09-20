@@ -112,8 +112,19 @@ class ContextBuilder:
             graph_data = graph_service.get_user_graph(user_id=user_id)
             edges = graph_data.get("edges", [])
             if edges:
+                # Prioritize edges mentioning terms in query or retrieved vector memories
+                q_terms = set(user_prompt.lower().split())
+                for item in valid_vector_memories:
+                    q_terms.update(item.get("payload", {}).get("content", "").lower().split())
+                
+                relevant_edges = [
+                    e for e in edges
+                    if any(t in str(e.get("source", "")).lower() or t in str(e.get("target", "")).lower() for t in q_terms if len(t) > 3)
+                ]
+                selected_edges = relevant_edges[:5] if relevant_edges else edges[:5]
+                
                 context_parts.append("\n=== KNOWLEDGE GRAPH CONTEXT ===")
-                for edge in edges[:5]:
+                for edge in selected_edges:
                     src = edge.get("source")
                     rel = edge.get("relationship")
                     tgt = edge.get("target")
@@ -130,10 +141,8 @@ class ContextBuilder:
                 "graph_nodes_used": []
             }
 
-        context_parts.append("\nInstructions: Personalize your response strictly using the user profile, active project details, and relevant memories above.")
         full_context_text = "\n".join(context_parts)
-        
-        augmented_prompt = f"{full_context_text}\n\nUser Question: {user_prompt}"
+        augmented_prompt = f"{full_context_text}\n\n{user_prompt}"
 
         return {
             "augmented_prompt": augmented_prompt,

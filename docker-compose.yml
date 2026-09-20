@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-memos_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memos_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-memos_db}
     ports:
       - "5432:5432"
@@ -49,7 +49,7 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/memos_password}
+      NEO4J_AUTH: ${NEO4J_AUTH:?NEO4J_AUTH must be set}
     volumes:
       - neo4j_data:/data
 
@@ -62,14 +62,16 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-memos_user}:${POSTGRES_PASSWORD:-memos_password}@postgres:5432/${POSTGRES_DB:-memos_db}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-memos_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-memos_db}
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-memos_password}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - LIFECYCLE_INTERVAL_HOURS=${LIFECYCLE_INTERVAL_HOURS:-24}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -89,9 +91,7 @@ services:
     container_name: memos_frontend
     restart: always
     ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - "3000:80"  # nginx listens on 80 inside container
     depends_on:
       - backend
 

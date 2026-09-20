@@ -6,23 +6,13 @@ from app.schemas.schemas import ChatRequest
 from app.api.deps import get_current_user_optional
 from app.services.ollama_service import ollama_service
 from app.services.context_builder import context_builder
-from app.services.analysis_service import analysis_service
+from app.workers.scheduler import enqueue_analysis_job
 
 router = APIRouter(prefix="/chats", tags=["Chat Storage & History"])
 
 async def async_extract_chat_memories(user_id: str, chat_id: str):
-    """
-    Phase 2: Automated Background Memory Extraction.
-    Extracts facts, deduplicates, flags conflicts, and updates Qdrant & Neo4j silently
-    after every conversation turn without blocking user chat streaming.
-    """
-    db = SessionLocal()
-    try:
-        await analysis_service.analyze_chat(db=db, user_id=user_id, chat_id=chat_id)
-    except Exception as e:
-        print(f"Background chat analysis error for chat {chat_id}: {e}")
-    finally:
-        db.close()
+    """Queue durable memory extraction after a conversation turn."""
+    enqueue_analysis_job(user_id=user_id, chat_id=chat_id)
 
 @router.get("/")
 def get_user_chats(
@@ -45,6 +35,36 @@ def get_chat_messages(
     messages = db.query(Message).filter(Message.chat_id == chat_id).order_by(Message.created_at.asc()).all()
     return [{"id": m.id, "role": m.role, "content": m.content, "created_at": m.created_at} for m in messages]
 
+@router.delete("/{chat_id}")
+def delete_user_chat(
+    chat_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == current_user.id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    db.delete(chat)
+    db.commit()
+    return {"status": "deleted", "chat_id": chat_id}
+
+@router.patch("/{chat_id}")
+def rename_user_chat(
+    chat_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == current_user.id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    if "title" in payload and payload["title"]:
+        chat.title = payload["title"]
+        db.commit()
+        db.refresh(chat)
+    return {"id": chat.id, "title": chat.title}
+
+@router.post("/message")
 @router.post("/send")
 async def send_chat_message(
     request: ChatRequest,
@@ -160,9 +180,42 @@ async def stream_chat_message(
     chat_id_val = chat.id
     user_id_val = current_user.id
 
+    async def _persist_and_extract(complete_text: str):
+        """Persists the assistant message and triggers memory extraction.
+        Opens its own DB session to avoid using the request-scoped session
+        inside an async generator (which causes thread-safety issues — Step 1.5).
+        """
+        db_inner = SessionLocal()
+        try:
+            assistant_msg = Message(
+                chat_id=chat_id_val,
+                role="assistant",
+                content=complete_text or "No response generated."
+            )
+            db_inner.add(assistant_msg)
+            db_inner.commit()
+            # Background memory extraction
+            enqueue_analysis_job(user_id=user_id_val, chat_id=chat_id_val)
+        except Exception as err:
+            print(f"[chats.py] Error persisting stream message: {err}")
+        finally:
+            db_inner.close()
+
     async def sse_generator():
         import json
         import asyncio
+
+        # Emit initial context metadata so UI shows recalled memories immediately
+        if context_meta and (context_meta.get("memories_used") or context_meta.get("graph_nodes_used")):
+            init_payload = json.dumps({
+                "type": "context",
+                "chat_id": chat_id_val,
+                "recalled_memories": context_meta.get("memories_used", []),
+                "graph_nodes": context_meta.get("graph_nodes_used", []),
+                "context_injected": context_meta.get("context_injected", "")
+            })
+            yield f"data: {init_payload}\n\n"
+
         full_response = []
         try:
             async for token in ollama_service.generate_chat_stream(
@@ -177,17 +230,9 @@ async def stream_chat_message(
             err_payload = json.dumps({"token": f" [Error: {str(e)}]", "done": False, "chat_id": chat_id_val})
             yield f"data: {err_payload}\n\n"
 
-        # Persist full assistant message to DB
+        # Persist full response and extract memories in a clean background task
         complete_text = "".join(full_response)
-        try:
-            assistant_msg = Message(chat_id=chat_id_val, role="assistant", content=complete_text or "No response generated.")
-            db.add(assistant_msg)
-            db.commit()
-
-            # Schedule automated background memory extraction without delaying the stream
-            asyncio.create_task(async_extract_chat_memories(user_id=user_id_val, chat_id=chat_id_val))
-        except Exception as err:
-            print(f"Error saving stream message to DB: {err}")
+        asyncio.create_task(_persist_and_extract(complete_text))
 
         final_payload = json.dumps({
             "token": "",

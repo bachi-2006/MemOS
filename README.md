@@ -1,7 +1,8 @@
 # MemOS: Adaptive Memory Lifecycle Management Framework
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-14.1.3-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Vite](https://img.shields.io/badge/Vite-5.4.11-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev)
+[![React](https://img.shields.io/badge/React-18.3.1-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-DC2626.svg?logo=qdrant&logoColor=white)](https://qdrant.tech)
 [![Neo4j](https://img.shields.io/badge/Neo4j-Knowledge_Graph-008CC1.svg?logo=neo4j&logoColor=white)](https://neo4j.com)
@@ -20,11 +21,11 @@ MemOS is a **local-first, privacy-preserving** memory system. Everything it lear
 | **Canonical Memories** | PostgreSQL / SQLite (`memories`) | The memory content plus lifecycle metadata (importance, confidence, access count, tags, entities, status, collection, project, pinned flag) |
 | **Semantic Vectors** | Qdrant (`memory_vectors`) | Dense 768-dim embeddings (via `nomic-embed-text`) with cosine similarity; filtered by `user_id` + `status` |
 | **Knowledge Graph** | Neo4j (`User`, `Project`, `Technology`, `Skill`, `Concept` nodes and triple edges) | Entity-relationship facts like `(User)-[:USES]->(Qdrant)` scoped per user |
-| **User Profile** | PostgreSQL / SQLite (`user_profiles`) | Auto-learned languages, frameworks, projects, skills, interests, writing style, goals |
+| **User Profile** | PostgreSQL / SQLite (`user_profiles`) | Deterministically-extracted languages, frameworks, projects, skills, interests, writing style, goals |
 | **Analysis History** | PostgreSQL / SQLite (`analysis_history`) | Audit log of every chat analysis / memory-optimization run with counts |
-| **Session Cache** | Redis | Low-latency session lookup (optional, graceful if absent) |
+| **Embedding Cache** | Redis | LRU cache for 768-dim embeddings with 24h TTL (optional, graceful fallback) |
 
-> **Dual deployment mode:** If PostgreSQL (or the other stores) is reachable it is used; otherwise the backend automatically falls back to a local **SQLite** file (`backend/memos_local.db`) plus an in-memory / optional Qdrant — enabling a lightweight standalone "companion" mode with no Docker required.
+> **Dual deployment mode:** If PostgreSQL (or the other stores) is reachable it is used; otherwise the backend automatically falls back to a local **SQLite** file (`backend/memos_local.db`) plus an in-process / optional Qdrant vector store — enabling a lightweight standalone "companion" mode with no Docker required.
 
 ---
 
@@ -34,11 +35,11 @@ MemOS is a **local-first, privacy-preserving** memory system. Everything it lear
   - **Relational Metadata (PostgreSQL)**: Canonical storage for user profiles, conversation history, memory status, and scoring metrics.
   - **Vector Search (Qdrant)**: High-dimensional semantic vector indexing and similarity retrieval using local embeddings (`nomic-embed-text`).
   - **Knowledge Graph (Neo4j)**: Entity-relationship graph extraction and associative link exploration across conversations.
-  - **Fast Cache (Redis)**: Low-latency caching for active sessions and lifecycle jobs.
+  - **Embedding Cache (Redis)**: High-speed LRU vector cache for repeated text prompts and embeddings (24h TTL).
 - **⚡ Automated Chat Analysis & Memory Optimization**:
   - **🧠 Analyze Chat**: Parses conversation transcripts, ignores greetings and small talk, extracts structured facts/technologies/projects/skills, eliminates duplicates, and updates graph triples.
   - **🧹 Optimize Memory**: Sweeps the entire memory store, recalculates importance scores, triggers LLM compression on stale memories, and cleans up contradictory facts.
-  - **🤖 Automatic & Scheduled**: Every chat turn in the UI/proxy automatically triggers background memory extraction (non-blocking `BackgroundTasks`), and an **APScheduler** job runs nightly to recalculate importance, compress stale memories, and run adaptive forgetting — no manual maintenance required.
+  - **🤖 Automatic & Scheduled**: Every chat turn in the UI/proxy enqueues durable analysis work (non-blocking request handling with retry tracking), and **APScheduler** workers process it alongside configurable lifecycle sweeps.
 - **🎯 Dynamic Context Augmentation & Personalization**:
   - Automatically enriches prompts with relevant semantic memories, knowledge graph triples, user profile preferences, active projects, and pinned notes before calling Ollama.
 - **⏳ Adaptive Memory Lifecycle Engine**:
@@ -58,7 +59,7 @@ MemOS is a **local-first, privacy-preserving** memory system. Everything it lear
 ```mermaid
 flowchart TD
     subgraph Clients["User & Client Interfaces"]
-        UI["Next.js Modern Web UI\n(Port 3000)"]
+        UI["Vite + React SPA\n(Port 5173 dev / 8000 prod)"]
         EXT["Chrome Extension /\nTampermonkey Plugin"]
         CLI["PowerShell CLI\nsave_memory.ps1"]
         PROXY["Ollama Desktop /\nOpen WebUI Proxy"]
@@ -143,34 +144,42 @@ MemOs/
 │   │   │   └── qdrant_service.py       # Qdrant collection & search manager
 │   │   └── workers/
 │   │       └── scheduler.py            # APScheduler nightly memory lifecycle jobs (importance, compression, forgetting)
-│   └── tests/                          # Pytest unit, integration, proxy & security tests
+│   └── tests/                          # Pytest unit, integration, lifecycle, security & regression tests
 │       ├── test_analysis_service.py
+│       ├── test_cross_db_consistency.py
 │       ├── test_full_pipeline.py
+│       ├── test_functional_api_retrieval.py
+│       ├── test_functional_classification.py
+│       ├── test_importance_and_lifecycle.py
+│       ├── test_live_ollama_retrieval.py
 │       ├── test_multi_tenant_security.py
 │       ├── test_ollama_proxy.py
 │       ├── test_personalized_context.py
 │       └── test_profile_service.py
 ├── frontend/
-│   ├── Dockerfile
+│   ├── Dockerfile                      # Multi-stage Node build -> Nginx alpine
+│   ├── nginx.conf                      # Nginx reverse proxy configuration
 │   ├── package.json
-│   ├── next.config.js
-│   ├── tailwind.config.js
-│   ├── tsconfig.json
+│   ├── vite.config.js                  # Vite configuration & proxy routes
+│   ├── index.html
 │   └── src/
-│       ├── app/                        # Next.js 14 App router
-│       │   ├── globals.css             # Theme styles & scrollbar setup
-│       │   ├── layout.tsx              # Root HTML wrapper
-│       │   └── page.tsx                # Main workspace container
-│       └── components/                 # UI Tabs & Modals
-│           ├── AnalysisModal.tsx       # Multi-step animated chat analysis modal
-│           ├── ChatTab.tsx             # Interactive chat with personalization toggle
-│           ├── DashboardTab.tsx        # Memory distribution & metrics cards
-│           ├── GraphTab.tsx            # Neo4j entity & knowledge triple explorer
-│           ├── OllamaIntegrationPanel.tsx  # Live Ollama/proxy status, model picker, 1-click bridge
-│           ├── SearchTab.tsx           # Semantic vector search & memory table
-│           ├── Sidebar.tsx             # Navigation sidebar
-│           ├── UserProfileTab.tsx      # Auto-learned profile editor
-│           └── types.ts                # TypeScript data interfaces
+│       ├── App.jsx                     # Root application container & navigation
+│       ├── main.jsx                    # SPA mount point
+│       ├── styles.css                  # Global styles & design system
+│       ├── components/                 # Views & UI components
+│       │   ├── ChatView.jsx            # Interactive chat workspace
+│       │   ├── Composer.jsx            # Message composer & shortcuts
+│       │   ├── DashboardView.jsx       # Real-time memory distribution & metrics
+│       │   ├── GraphView.jsx           # Knowledge graph visualizer
+│       │   ├── MemoryView.jsx          # Memory search, pin, and lifecycle actions
+│       │   ├── MessageItem.jsx         # Chat message renderer
+│       │   ├── ProfileView.jsx         # Extracted user profile & preferences
+│       │   ├── SetupView.jsx           # Service connection setup & diagnostics
+│       │   ├── Sidebar.jsx             # Navigation sidebar
+│       │   ├── Toast.jsx               # Floating notifications
+│       │   └── Topbar.jsx              # Header status bar & model picker
+│       ├── hooks/                      # Custom hooks (useMemory)
+│       └── lib/                        # Client utilities & markdown renderer
 ├── scripts/
 │   ├── extension/                      # Chrome / Edge / Brave Extension (Manifest V3)
 │   │   ├── manifest.json
@@ -209,20 +218,20 @@ MemOs/
 
 ### 1. Launch with Docker Compose (Recommended)
 
-Start all services (Postgres, Redis, Qdrant, Neo4j, FastAPI backend, Next.js frontend) with a single command:
+Start all services (Postgres, Redis, Qdrant, Neo4j, FastAPI backend, Vite/Nginx frontend) with a single command:
 
 ```bash
 # Navigate to project root
 cd MemOs
 
-# Start all microservices in the background
+# Start all microservices in the background. Set the required secrets in .env first.
 docker compose up -d --build
 ```
 
 #### Services Access Endpoints:
 | Service | URL | Description |
 | :--- | :--- | :--- |
-| **Frontend Web App** | [http://localhost:3000](http://localhost:3000) | Full Next.js 14 Web Workspace |
+| **Frontend Web App** | [http://localhost:3000](http://localhost:3000) | Vite + React SPA served via Nginx |
 | **FastAPI Backend & Swagger** | [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive OpenAPI Documentation |
 | **Qdrant Vector Dashboard** | [http://localhost:6333/dashboard](http://localhost:6333/dashboard) | Vector Collection Explorer |
 | **Neo4j Browser** | [http://localhost:7474](http://localhost:7474) | Graph Database Visualizer |
@@ -250,7 +259,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
@@ -275,7 +284,7 @@ The FastAPI backend exposes RESTful endpoints at `/api/v1`:
 
 ### 3. Knowledge Graph & Profile
 - `GET /api/v1/graph/`: Retrieve Neo4j nodes and knowledge triples scoped to the current user.
-- `GET /api/v1/profile/`: Get auto-learned user profile (languages, frameworks, projects, skills, style, learning goals).
+- `GET /api/v1/profile/`: Get the extracted user profile (languages, frameworks, projects, skills, style, learning goals).
 - `PATCH /api/v1/profile/`: Manually update profile preferences.
 
 ### 4. Metrics & Analytics
@@ -318,9 +327,12 @@ Install `scripts/memos_browser_plugin.user.js` in Tampermonkey or Violentmonkey 
 Run the automated backend test suite with `pytest`:
 
 ```bash
-# Run all backend unit and integration tests (works in standalone SQLite mode, no Docker needed)
+# Run all backend unit and integration tests (works in standalone SQLite/in-process vector mode, no Docker needed)
 pytest backend/tests
 ```
+The suite covers backend unit, integration, lifecycle, proxy, and isolation
+tests. Live Ollama network tests are skipped when the local service is
+unavailable.
 
 ```bash
 # Run the empirical research benchmark harness (Raw LLM vs. Basic RAG vs. MemOS Multi-Store)
@@ -331,15 +343,19 @@ All test suites validate:
 - Chat analysis JSON extraction and parsing fallbacks.
 - Memory deduplication and importance scoring.
 - Personalized context assembly (vector + graph + profile).
-- User profile continuous auto-updating.
-- Multi-store pipeline execution with mock drivers.
+- User profile continuous auto-updating and list pruning.
+- Multi-store pipeline execution with mock drivers and local fallback stores.
 - OpenAI proxy streaming (SSE) and non-streaming compat.
 - **Multi-tenant security isolation** (User A cannot read User B's chats, vectors, or profile).
 
 ### CI Pipeline
 GitHub Actions (`.github/workflows/ci.yml`) automatically runs on every push/PR to `master`/`main`:
-- `pytest backend/tests` + the empirical benchmark harness (Python 3.10).
-- Frontend `tsc --noEmit` typecheck (Node 18).
+- `pytest backend/tests` (Python 3.10).
+- Frontend production build verification (`npm run build`).
+
+The empirical benchmark requires live PostgreSQL, Qdrant, Neo4j, Redis, and
+Ollama services, so it is run separately rather than as an unconditional CI
+step.
 
 ---
 

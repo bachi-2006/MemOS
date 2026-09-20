@@ -22,16 +22,16 @@ def get_user_profile(
     if not profile:
         profile = UserProfile(
             user_id=current_user.id,
-            preferred_languages=["Python", "TypeScript"],
-            preferred_frameworks=["FastAPI", "Next.js"],
-            current_projects=["MemOS"],
-            interests=["Local AI", "Vector Memory", "Knowledge Graphs"],
-            skills=["Full Stack Engineering", "AI Systems Architecture"],
-            technologies=["Qdrant", "Neo4j", "Ollama", "PostgreSQL"],
-            writing_style="Concise, technical, direct",
-            learning_goals=["Build fully autonomous local agent OS"],
-            preferred_model="qwen3.5:9b",
-            recent_focus=["Local Context Injection", "Knowledge Graph Synapses"]
+            preferred_languages=[],
+            preferred_frameworks=[],
+            current_projects=[],
+            interests=[],
+            skills=[],
+            technologies=[],
+            writing_style="Helpful, direct, technical",
+            learning_goals=[],
+            preferred_model="",
+            recent_focus=[]
         )
         db.add(profile)
         db.commit()

@@ -31,11 +31,11 @@ def test_user_profile_crud():
     db.add(user)
     db.commit()
 
-    # 1. Get profile (auto initializes default)
+    # 1. Get profile (auto initializes clean default without fake hardcoded seeds)
     profile = get_user_profile(db=db, current_user=user)
     assert profile is not None
-    assert "Python" in profile.preferred_languages
-    assert "MemOS" in profile.current_projects
+    assert isinstance(profile.preferred_languages, list)
+    assert isinstance(profile.current_projects, list)
 
     # 2. Update profile manually
     update_payload = UserProfileSchema(

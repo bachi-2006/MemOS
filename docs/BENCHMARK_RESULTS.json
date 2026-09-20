@@ -1,29 +1,21 @@
 {
-  "benchmark_timestamp": "2026-08-23 12:58:31",
-  "total_scenarios": 15,
-  "metrics": {
-    "raw_llm": {
-      "precision_at_3": 0.0,
-      "recall_at_3": 0.0,
-      "mrr": 0.0,
-      "latency_ms": 0.0
-    },
-    "naive_rag": {
-      "precision_at_3": 0.3333,
-      "recall_at_3": 0.3567,
-      "mrr": 0.6,
-      "latency_ms": 0.02
-    },
-    "memos_hybrid": {
-      "precision_at_3": 0.4,
-      "recall_at_3": 0.4567,
-      "mrr": 0.7,
-      "latency_ms": 0.0
-    }
-  },
-  "lifecycle_accuracy": {
-    "deduplication_rate_percent": 100.0,
-    "conflict_detection_rate_percent": 100.0,
-    "compression_token_savings_percent": 65.6
-  }
+  "generated_by": "scripts/real_benchmark.py",
+  "status": "PENDING",
+  "note": "This file has not yet been populated by a genuine benchmark run. Genuine results are only written after executing scripts/real_benchmark.py against live PostgreSQL, Qdrant, Neo4j, Redis, and Ollama instances. No simulated or fabricated metrics are included here.",
+  "benchmark_timestamp": null,
+  "total_scenarios": null,
+  "scenario_categories": [
+    "Facts",
+    "Preferences",
+    "Projects",
+    "Skills",
+    "Goals",
+    "Temporal Information",
+    "Multi-Hop Reasoning",
+    "Duplicates",
+    "Conflicts",
+    "Irrelevant"
+  ],
+  "metrics": null,
+  "lifecycle_accuracy": null
 }

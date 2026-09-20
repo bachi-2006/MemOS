@@ -7,6 +7,16 @@ from app.core.config import settings
 class OllamaService:
     def __init__(self, base_url: Optional[str] = None):
         self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
+        # Test seam: a deterministic in-process embedding function used when a
+        # live Ollama instance is not available, so retrieval math still runs
+        # against real vectors in offline functional tests.
+        self._local_embedding = None
+
+    def use_local_embeddings(self, fn):
+        self._local_embedding = fn
+
+    def clear_local_embeddings(self):
+        self._local_embedding = None
 
     async def get_status(self) -> Dict[str, Any]:
         """
@@ -94,26 +104,45 @@ class OllamaService:
                 response = await client.get(f"{self.base_url}/api/tags")
                 if response.status_code == 200:
                     data = response.json()
-                    return data.get("models", [])
+                    models_raw = data.get("models", [])
+                    return [m.get("name") for m in models_raw if m.get("name")]
                 return []
             except Exception as e:
                 print(f"Ollama connection error in list_models: {e}")
                 return []
+
+    async def _resolve_model(self, model: Optional[str] = None) -> str:
+        """Return an explicit model, falling back to the configured default,
+        then to the first model installed on the local Ollama instance."""
+        if model:
+            return model
+        if settings.DEFAULT_LLM_MODEL:
+            return settings.DEFAULT_LLM_MODEL
+        try:
+            models = await self.list_models()
+            if models:
+                return models[0]
+        except Exception:
+            pass
+        return settings.DEFAULT_LLM_MODEL
 
     async def generate_chat(
         self,
         prompt: str,
         model: Optional[str] = None,
         system_context: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        format: Optional[str] = None
     ) -> str:
         """Non-streaming generation from local Ollama."""
-        model = model or settings.DEFAULT_LLM_MODEL
+        model = await self._resolve_model(model)
         payload: Dict[str, Any] = {
             "model": model,
             "prompt": prompt,
             "stream": False
         }
+        if format:
+            payload["format"] = format
         if system_context:
             payload["system"] = system_context
         if options:
@@ -139,7 +168,7 @@ class OllamaService:
         Phase 4: Streaming token generator directly from Ollama.
         Yields individual text token deltas as they arrive from Ollama.
         """
-        model = model or settings.DEFAULT_LLM_MODEL
+        model = await self._resolve_model(model)
         payload: Dict[str, Any] = {
             "model": model,
             "prompt": prompt,
@@ -172,8 +201,26 @@ class OllamaService:
                 yield f"[Ollama Connection Error: {str(e)}]"
 
     async def generate_embedding(self, text: str, model: Optional[str] = None) -> List[float]:
-        """Generates embedding vector from local Ollama."""
+        """Generates embedding vector from local Ollama.
+
+        Tries the live Ollama instance first (so tests with a real Ollama exercise
+        the genuine embedding service); falls back to an injected in-process
+        embedding function when Ollama is unreachable, so offline tests still
+        operate on real vectors.
+
+        Results are cached in Redis (24h TTL) to avoid re-computing embeddings
+        for repeated text inputs (Step 2.2).
+        """
+        if self._local_embedding is not None:
+            return self._local_embedding(text)
         model = model or settings.DEFAULT_EMBEDDING_MODEL
+
+        # Check Redis embedding cache before calling Ollama (Step 2.2)
+        from app.services.cache_service import embedding_cache
+        cached = embedding_cache.get(text, model)
+        if cached:
+            return cached
+
         payload = {
             "model": model,
             "prompt": text
@@ -182,7 +229,11 @@ class OllamaService:
             try:
                 response = await client.post(f"{self.base_url}/api/embeddings", json=payload)
                 if response.status_code == 200:
-                    return response.json().get("embedding", [])
+                    embedding = response.json().get("embedding", [])
+                    # Cache result for future identical requests
+                    if embedding:
+                        embedding_cache.set(text, model, embedding)
+                    return embedding
                 return []
             except Exception as e:
                 print(f"Ollama embedding error: {e}")

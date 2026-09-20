@@ -9,7 +9,7 @@
 To rigorously evaluate recall, precision, ranking accuracy, lifecycle efficiency, and latency trade-offs:
 1. **Baseline A — Raw LLM**: Local LLM execution with zero long-term memory or external context augmentation.
 2. **Baseline B — Naive Vector RAG**: Standard single-vector cosine similarity top-$k$ retrieval over unstructured chunks.
-3. **Proposed System — MemOS Multi-Store Framework**: Hybrid Vector Indexing (Qdrant) + Knowledge Graph Associative Links (Neo4j) + Auto-Learned User Profile (PostgreSQL) + Dynamic Importance Lifecycle Filtering.
+3. **Proposed System — MemOS Multi-Store Framework**: Hybrid Vector Indexing (Qdrant) + Knowledge Graph Associative Links (Neo4j) + User Profile (PostgreSQL) + Weighted Heuristic Importance Lifecycle Filtering.
 
 ---
 

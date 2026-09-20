@@ -36,7 +36,7 @@ class OpenAIChatMessage(BaseModel):
         return str(self.content)
 
 class OpenAIChatRequest(BaseModel):
-    model: Optional[str] = "qwen3.5:9b"
+    model: Optional[str] = None
     messages: List[OpenAIChatMessage]
     stream: Optional[bool] = False
     temperature: Optional[float] = None
@@ -52,11 +52,58 @@ class OpenAIChatRequest(BaseModel):
 # Local User / Session Helper (Phase 5)
 # -----------------------------------------------------------------------------
 
-def resolve_proxy_user(db: Session, requested_user: Optional[str] = None, x_user_id: Optional[str] = None) -> User:
+from jose import jwt, JWTError
+
+def resolve_proxy_user(
+    db: Session,
+    requested_user: Optional[str] = None,
+    x_user_id: Optional[str] = None,
+    authorization: Optional[str] = None,
+    client_host: Optional[str] = None
+) -> User:
     """
-    Safely resolves the local MemOS companion user without hardcoding `db.query(User).first()`.
-    Deterministic single-user companion or scoped identifier.
+    Securely resolves the proxy user identity.
+    1. If Authorization Bearer token is provided:
+       Strictly decodes the JWT and resolves user by token 'sub'.
+       Fails with 401 if token is invalid or user does not exist.
+       Rejects client-controlled user spoofing (IDOR prevention).
+    2. If NO Authorization token is provided:
+       Enforces COMPANION_MODE=True and verifies request is from local loopback (127.0.0.1 / ::1).
+       Resolves the local companion user.
     """
+    # 1. Bearer Token Authentication (Authoritative)
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(status_code=401, detail="Invalid token subject in proxy request")
+            
+            # Prevent IDOR spoofing: if client also provided requested_user, it must match token subject
+            if requested_user and requested_user != user_id:
+                raise HTTPException(status_code=403, detail="Forbidden: cannot access another user's memories")
+            if x_user_id and x_user_id != user_id:
+                raise HTTPException(status_code=403, detail="Forbidden: cannot access another user's memories via X-User-Id")
+                
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(status_code=401, detail="User referenced in token not found")
+            return user
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Could not validate credentials in proxy request")
+
+    # 2. Companion Mode Fallback
+    if not getattr(settings, "COMPANION_MODE", True):
+        raise HTTPException(status_code=401, detail="Authentication token required. COMPANION_MODE is disabled.")
+
+    # Restrict anonymous companion mode to loopback
+    if client_host and client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(
+            status_code=403,
+            detail="Anonymous proxy access is restricted to local loopback (127.0.0.1). Provide an Authorization Bearer token."
+        )
+
     user_identifier = requested_user or x_user_id or "local_companion_user"
     
     # Try finding by username or ID
@@ -128,11 +175,8 @@ async def async_store_chat_and_memory(
             )
 
         # 5. Automatically trigger background chat analysis & graph sync
-        try:
-            from app.services.analysis_service import analysis_service
-            await analysis_service.analyze_chat(db=db, user_id=user_id, chat_id=chat.id)
-        except Exception as err:
-            print(f"Background proxy analysis notice: {err}")
+        from app.workers.scheduler import enqueue_analysis_job
+        enqueue_analysis_job(user_id=user_id, chat_id=chat.id)
     except Exception as e:
         print(f"Async chat storage notice: {e}")
     finally:
@@ -153,8 +197,7 @@ async def openai_list_models():
     data = []
     current_time = int(time.time())
     
-    for m in models_raw:
-        model_name = m.get("name", "unknown")
+    for model_name in models_raw:
         data.append({
             "id": model_name,
             "object": "model",
@@ -166,7 +209,7 @@ async def openai_list_models():
         })
 
     # Default fallback entry if none discovered yet
-    if not data:
+    if not data and settings.DEFAULT_LLM_MODEL:
         data.append({
             "id": settings.DEFAULT_LLM_MODEL,
             "object": "model",
@@ -185,10 +228,13 @@ async def openai_list_models():
 
 @router.post("/v1/chat/completions")
 @router.post("/api/chat")
+@router.post("/api/openai/v1/chat/completions")
 async def openai_chat_completions(
     request: OpenAIChatRequest,
     background_tasks: BackgroundTasks,
+    raw_request: Request,
     db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None),
     x_user_id: Optional[str] = Header(None)
 ):
     """
@@ -197,14 +243,23 @@ async def openai_chat_completions(
       - Memory & Graph Context Injection (Personalized ON/OFF)
       - SSE Real-time Token Streaming (`stream=true`)
       - Full message history preservation (system, user, assistant)
-      - Safe user resolution (no `db.query(User).first()`)
+      - Secure user resolution & IDOR prevention
       - Asynchronous full conversation capture
     """
     if not request.messages:
         raise HTTPException(status_code=400, detail="Messages list is empty")
 
     # 1. Resolve User securely
-    user = resolve_proxy_user(db, request.user, x_user_id)
+    # Use the socket peer address. Forwarding headers are not trusted here,
+    # because anonymous companion access is intentionally loopback-only.
+    client_host = raw_request.client.host if (raw_request and raw_request.client) else None
+    user = resolve_proxy_user(
+        db=db,
+        requested_user=request.user,
+        x_user_id=x_user_id,
+        authorization=authorization,
+        client_host=client_host
+    )
     user_id = user.id
 
     # 2. Extract messages transcript & latest user query
@@ -266,22 +321,18 @@ async def openai_chat_completions(
     # 4. STREAMING MODE (Phase 4 SSE)
     # -------------------------------------------------------------------------
     if request.stream:
-        async def event_generator():
-            full_response_accumulator = []
-            
-            # Initial chunk (role: assistant)
+        full_response_accumulator = []
+
+        async def stream_generator():
+            """Streams tokens from Ollama. Memory capture is scheduled via
+            background_tasks so the connection closes immediately after [DONE]."""
+            # Initial role chunk
             initial_chunk = {
                 "id": completion_id,
                 "object": "chat.completion.chunk",
                 "created": created_ts,
                 "model": selected_model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "delta": {"role": "assistant", "content": ""},
-                        "finish_reason": None
-                    }
-                ]
+                "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]
             }
             yield f"data: {json.dumps(initial_chunk)}\n\n"
 
@@ -298,45 +349,38 @@ async def openai_chat_completions(
                     "object": "chat.completion.chunk",
                     "created": created_ts,
                     "model": selected_model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {"content": token},
-                            "finish_reason": None
-                        }
-                    ]
+                    "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}]
                 }
                 yield f"data: {json.dumps(chunk)}\n\n"
 
-            # Final finish chunk
+            # Final finish chunk + sentinel
             final_chunk = {
                 "id": completion_id,
                 "object": "chat.completion.chunk",
                 "created": created_ts,
                 "model": selected_model,
-                "choices": [
-                    {
-                        "index": 0,
-                        "delta": {},
-                        "finish_reason": "stop"
-                    }
-                ]
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]
             }
             yield f"data: {json.dumps(final_chunk)}\n\n"
             yield "data: [DONE]\n\n"
+            # Memory capture is handled OUTSIDE the generator via background_tasks.
+            # This ensures the HTTP stream (and TCP connection) closes immediately.
 
-            # Asynchronous background capture of full untruncated conversation
-            complete_assistant_text = "".join(full_response_accumulator)
+        async def _post_stream_capture():
+            """Runs after StreamingResponse exhausts the generator.
+            By this time full_response_accumulator is fully populated."""
             await async_store_chat_and_memory(
                 user_id=user_id,
                 session_id=request.session_id,
                 user_prompt=latest_user_query,
-                assistant_response=complete_assistant_text,
+                assistant_response="".join(full_response_accumulator),
                 model=selected_model
             )
 
+        background_tasks.add_task(_post_stream_capture)
+
         return StreamingResponse(
-            event_generator(),
+            stream_generator(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

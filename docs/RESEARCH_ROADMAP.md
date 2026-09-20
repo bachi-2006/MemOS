@@ -13,7 +13,7 @@ graph TD
     P1["Phase 1: Multi-Store Storage & Local Infrastructure\n• PostgreSQL 15 (Canonical Metadata)\n• Qdrant (Vector Similarity)\n• Neo4j (Knowledge Graph)\n• Redis (Cache)\n• Ollama (Local LLM Inference)"]
     P2["Phase 2: Automated Background Memory Extraction\n• Non-blocking FastAPI BackgroundTasks on chat turn\n• LLM entity & fact extraction\n• Deduplication & Conflict Detection\n• Multi-store synchronous indexing"]
     P3["Phase 3: Context Augmentation & SSE Token Streaming\n• Personalized Prompt Builder\n• Real-Time Server-Sent Events (/chats/stream & /ollama/stream)\n• Live typing cursor & streaming UI indicator"]
-    P4["Phase 4: Empirical Research Benchmarking\n• 50+ Ground-truth test scenarios (scripts/real_benchmark.py)\n• Raw LLM vs. Basic RAG vs. MemOS Multi-Store\n• Genuine Precision@K, Recall@K, MRR & Latency calculations"]
+    P4["Phase 4: Empirical Research Benchmarking\n• 80 Ground-truth test scenarios (scripts/benchmark_dataset.py)\n• Raw LLM vs. Basic RAG vs. MemOS Multi-Store\n• Genuine Precision@K, Recall@K, MRR, F1 & latency via real DBs"]
     P5["Phase 5: Multi-Tenant Security & Storage Hardening\n• Automated tenant isolation test suite\n• Dual Deployment Mode: Standalone SQLite vs. Production Multi-Store"]
 
     P1 --> P2 --> P3 --> P4 --> P5
@@ -64,10 +64,16 @@ Persist Complete Messages to SQL Database
 
 ## 3. Empirical Research Benchmarks & Reproduction
 
-The benchmark harness in `scripts/real_benchmark.py` measures real retrieval and lifecycle performance without simulated delays:
+The benchmark harness in `scripts/real_benchmark.py` measures real retrieval and lifecycle
+performance through the live persistence stack (PostgreSQL + Qdrant + Neo4j) and the real
+Ollama inference layer, without simulated delays. The ground-truth dataset lives in
+`scripts/benchmark_dataset.py` (80 scenarios across 10 categories: Facts, Preferences,
+Projects, Skills, Goals, Temporal Information, Multi-Hop Reasoning, Duplicates, Conflicts,
+and Irrelevant/Negative examples).
 
 ### Command to Reproduce:
 ```powershell
+# Requires PostgreSQL, Qdrant, Neo4j, Redis, and Ollama running, plus a .env file.
 python scripts/real_benchmark.py
 ```
 
@@ -75,10 +81,9 @@ python scripts/real_benchmark.py
 1. **Precision@K**: $\frac{|\text{Relevant Ground Truth} \cap \text{Retrieved@K}|}{K}$
 2. **Recall@K**: $\frac{|\text{Relevant Ground Truth} \cap \text{Retrieved@K}|}{|\text{Relevant Ground Truth}|}$
 3. **Mean Reciprocal Rank (MRR)**: $\frac{1}{\text{first hit rank}}$
-4. **Empirical Retrieval Latency**: Measured in milliseconds with high-resolution performance counters.
-5. **Deduplication Rate**: Proportion of redundant candidate facts consolidated into existing memories.
-6. **Conflict Flagging Precision**: Semantic opposition detection accuracy.
-7. **Compression Ratio**: Percentage token reduction of stale memories synthesized into long-term archives.
+4. **Empirical Retrieval Latency**: Measured in milliseconds across embedding + Qdrant + Neo4j + PostgreSQL + context construction + Ollama inference.
+5. **Duplicate Detection F1**: Precision/Recall/F1 over true-positive/false-positive/false-negative/true-negative classification.
+6. **Conflict Detection F1**: Same classification metrics for contradiction detection.
 
 ---
 
@@ -100,9 +105,9 @@ All 3 automated isolation tests verify:
 ## 5. Running the Complete Verification Suite
 
 ```powershell
-# Run all 16 backend unit, integration, streaming, and security tests
+# Run all 31 backend unit, integration, streaming, security, and lifecycle tests
 pytest backend/tests
 
-# Run empirical benchmark suite
+# Run empirical benchmark suite (requires live PostgreSQL, Qdrant, Neo4j, Redis, Ollama)
 python scripts/real_benchmark.py
 ```

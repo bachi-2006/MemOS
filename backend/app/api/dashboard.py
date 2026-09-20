@@ -18,15 +18,18 @@ def get_dashboard_metrics(
     forgotten_memories = db.query(MemoryModel).filter(MemoryModel.user_id == current_user.id, MemoryModel.status == "forgotten").count()
     total_chats = db.query(Chat).filter(Chat.user_id == current_user.id).count()
 
-    memories = db.query(MemoryModel).filter(MemoryModel.user_id == current_user.id).all()
-    avg_importance = sum([m.importance_score for m in memories]) / len(memories) if memories else 1.0
-    
+    # Use SQL aggregates — avoids loading all memory rows into Python RAM
+    from sqlalchemy import func
+    agg = db.query(
+        func.avg(MemoryModel.importance_score),
+        func.avg(MemoryModel.confidence_score),
+    ).filter(MemoryModel.user_id == current_user.id).one()
+    avg_importance = float(agg[0] or 1.0)
+    avg_confidence = float(agg[1] or 0.95) * 100.0
+
     # Calculate real compression ratio
     compressed_count = archived_memories + forgotten_memories
     comp_ratio = (compressed_count / total_memories * 100.0) if total_memories > 0 else 0.0
-
-    # Calculate real retrieval confidence/accuracy
-    avg_confidence = (sum([m.confidence_score or 1.0 for m in memories]) / len(memories) * 100.0) if memories else 95.0
 
     return {
         "total_memories": total_memories,
@@ -36,5 +39,5 @@ def get_dashboard_metrics(
         "total_chats": total_chats,
         "average_importance_score": round(avg_importance, 2),
         "compression_ratio": f"{comp_ratio:.1f}%",
-        "retrieval_accuracy": f"{avg_confidence:.1f}%"
+        "average_memory_confidence": round(avg_confidence, 1),
     }

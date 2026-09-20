@@ -102,4 +102,4 @@ def test_dashboard_metrics_calculation():
     assert metrics["active_memories"] == 1
     assert metrics["archived_memories"] == 1
     assert metrics["compression_ratio"] == "50.0%"
-    assert "85.0%" in metrics["retrieval_accuracy"] or "90.0%" in metrics["retrieval_accuracy"]
+    assert metrics["average_memory_confidence"] == 85.0

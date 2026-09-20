@@ -45,6 +45,8 @@ class MemorySchema(BaseModel):
     collection: str = "General"
     project: Optional[str] = None
     is_pinned: bool = False
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,7 +54,7 @@ class MemorySchema(BaseModel):
 class ChatRequest(BaseModel):
     chat_id: Optional[str] = None
     prompt: str
-    model: Optional[str] = "qwen3.5:9b"
+    model: Optional[str] = None
     system_context: Optional[str] = None
     personalized: bool = True
     active_project: Optional[str] = None

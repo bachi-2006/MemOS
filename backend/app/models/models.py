@@ -76,6 +76,13 @@ class MemoryModel(Base):
     collection = Column(String, default="General") # e.g., Projects, Coding, Research, Personal, Work, etc.
     project = Column(String, nullable=True) # e.g., MemOS
     is_pinned = Column(Boolean, default=False)
+    
+    # Temporal Validity (Jury Audit Section 3)
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=True)
+    valid_until = Column(DateTime, nullable=True)
+
+    # Persistent Vector Embeddings (Offline Seam Hardening)
+    embedding = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="memories")
 
@@ -122,3 +129,30 @@ class AnalysisHistory(Base):
     vectors_indexed = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class GraphFact(Base):
+    """Durable fallback knowledge-graph edge for deployments without Neo4j."""
+    __tablename__ = "graph_facts"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    source = Column(String, nullable=False)
+    source_type = Column(String, nullable=False)
+    relationship = Column(String, nullable=False)
+    target = Column(String, nullable=False)
+    target_type = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AnalysisJob(Base):
+    """Durable queue entry for asynchronous chat-memory analysis."""
+    __tablename__ = "analysis_jobs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    chat_id = Column(String, nullable=False, index=True)
+    status = Column(String, default="pending", nullable=False, index=True)
+    attempts = Column(Integer, default=0, nullable=False)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

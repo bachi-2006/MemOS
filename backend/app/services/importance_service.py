@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.models import MemoryModel
+from app.services.qdrant_service import qdrant_service
 
 class ImportanceEngine:
     def calculate_importance(
@@ -34,7 +35,15 @@ class ImportanceEngine:
     def update_all_importance_scores(self, db: Session, user_id: str):
         memories = db.query(MemoryModel).filter(MemoryModel.user_id == user_id, MemoryModel.status == "active").all()
         for mem in memories:
-            mem.importance_score = self.calculate_importance(mem)
+            # Pass is_pinned explicitly so the +2.0 pin bonus is preserved on every sweep
+            new_score = self.calculate_importance(mem, is_pinned=bool(mem.is_pinned))
+            if new_score != mem.importance_score:
+                mem.importance_score = new_score
+                # Keep the vector-store payload in sync with the canonical DB score
+                try:
+                    qdrant_service.set_importance_score(mem.id, new_score)
+                except Exception as e:
+                    print(f"Qdrant importance sync notice: {e}")
         db.commit()
 
 importance_engine = ImportanceEngine()

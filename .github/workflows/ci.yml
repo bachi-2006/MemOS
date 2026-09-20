@@ -31,12 +31,8 @@ jobs:
       run: |
         pytest backend/tests
 
-    - name: Run Empirical Research Benchmark Harness
-      run: |
-        python scripts/real_benchmark.py
-
   frontend-check:
-    name: Frontend Build & Typecheck
+    name: Frontend Production Build
     runs-on: ubuntu-latest
 
     steps:
@@ -54,6 +50,6 @@ jobs:
       working-directory: frontend
       run: npm ci
 
-    - name: Run TypeScript typecheck
+    - name: Build Vite frontend
       working-directory: frontend
-      run: npx tsc --noEmit
+      run: npm run build
