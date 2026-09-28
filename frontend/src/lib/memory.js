@@ -76,6 +76,7 @@ function mapBackendMemory(bm) {
     project: bm.project || "",
     createdAt: bm.created_at ? new Date(bm.created_at).getTime() : Date.now(),
     updatedAt: bm.updated_at ? new Date(bm.updated_at).getTime() : Date.now(),
+    lastAccessed: bm.last_accessed ? new Date(bm.last_accessed).getTime() : (bm.created_at ? new Date(bm.created_at).getTime() : Date.now()),
   };
 }
 
@@ -135,6 +136,35 @@ export async function memPin(id, pinned) {
   } catch (err) {
     console.warn("Backend pin notice:", err);
   }
+}
+
+export async function memToggleMute(id) {
+  const m = (memCache || []).find((x) => x.id === id);
+  if (!m) return false;
+  const tags = Array.isArray(m.tags) ? [...m.tags] : [];
+  const idx = tags.indexOf("mute_recall");
+  const isMuted = idx !== -1;
+  if (isMuted) {
+    tags.splice(idx, 1);
+  } else {
+    tags.push("mute_recall");
+  }
+  m.tags = tags;
+  emit();
+  memSave(m);
+  try {
+    const res = await fetch(`/api/v1/memory/${id}/toggle-mute`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(localStorage.getItem("memos_auth_token") ? { Authorization: `Bearer ${localStorage.getItem("memos_auth_token")}` } : {}),
+      },
+    });
+    if (!res.ok) console.warn("Backend toggle-mute notice:", res.status);
+  } catch (err) {
+    console.warn("Backend toggle-mute notice:", err);
+  }
+  return !isMuted;
 }
 
 export function memClear() {

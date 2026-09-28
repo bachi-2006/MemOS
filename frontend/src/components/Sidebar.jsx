@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { EMBEDDING_HINT, fmtBytes } from "../lib/util.js";
 import MemoryView from "./MemoryView.jsx";
 import SetupView from "./SetupView.jsx";
@@ -16,9 +17,21 @@ function ChatPanel({
   statusText = "",
   onRefreshModels,
 }) {
+  const [chatSearch, setChatSearch] = useState("");
   const safeSessions = Array.isArray(sessions) ? sessions : [];
   const safeModels = Array.isArray(models) ? models : [];
   const safeLoaded = Array.isArray(loadedModels) ? loadedModels : [];
+
+  const filteredSessions = useMemo(() => {
+    if (!chatSearch.trim()) return safeSessions;
+    const q = chatSearch.toLowerCase();
+    return safeSessions.filter(
+      (s) =>
+        (s.title || "").toLowerCase().includes(q) ||
+        (Array.isArray(s.messages) &&
+          s.messages.some((m) => (m.content || "").toLowerCase().includes(q)))
+    );
+  }, [safeSessions, chatSearch]);
 
   return (
     <div className="side-view active" id="viewChat">
@@ -28,13 +41,33 @@ function ChatPanel({
         </button>
       </div>
       <div className="side-section-title">Conversations</div>
+      {safeSessions.length > 2 && (
+        <div className="sidebar-search-box">
+          <input
+            type="text"
+            placeholder="Search chats…"
+            value={chatSearch}
+            onChange={(e) => setChatSearch(e.target.value)}
+            className="sidebar-search-input"
+          />
+          {chatSearch && (
+            <button
+              className="sidebar-search-clear"
+              onClick={() => setChatSearch("")}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
       <nav className="sessions" aria-label="Conversations">
-        {safeSessions.length === 0 ? (
+        {filteredSessions.length === 0 ? (
           <div style={{ padding: "10px 8px", color: "var(--muted)", fontSize: 12 }}>
-            No conversations yet.
+            {chatSearch ? "No matching chats found." : "No conversations yet."}
           </div>
         ) : (
-          safeSessions.map((s, i) => (
+          filteredSessions.map((s, i) => (
             <button
               key={s.id}
               className={"session" + (s.id === currentId ? " active" : "")}

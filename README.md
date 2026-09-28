@@ -208,23 +208,47 @@ MemOs/
 
 ## 🚀 Quickstart Guide
 
-### Prerequisites
-- [Docker & Docker Compose](https://www.docker.com/) installed.
-- [Ollama](https://ollama.com/) running locally with your desired models installed:
-  ```bash
-  ollama pull qwen3.5:9b
-  ollama pull nomic-embed-text
-  ```
+### 1. 2-Minute Zero-Docker Quickstart (Recommended Default)
 
-### 1. Launch with Docker Compose (Recommended)
+> **💡 Personal Companion Mode:**
+> MemOS runs out-of-the-box on your machine with **zero external databases required**.
+> It automatically uses **SQLite** for relational storage, an **in-process vector store** for semantic search, and an internal **SQLite GraphFact table** for knowledge graphs.
 
-Start all services (Postgres, Redis, Qdrant, Neo4j, FastAPI backend, Vite/Nginx frontend) with a single command:
+#### Prerequisites
+1. Python 3.10+ installed
+2. [Ollama](https://ollama.com/) running locally:
+   ```bash
+   ollama pull nomic-embed-text
+   ollama run llama3.2   # or your preferred chat model
+   ```
+
+#### Launch
+```bash
+# Clone the repository
+git clone https://github.com/bachi-2006/MemOS.git
+cd MemOS
+
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# Run the 1-click launcher
+python run_app.py
+```
+
+That's it! `run_app.py` will:
+- Auto-generate a secure `.env` key with Companion Mode enabled.
+- Connect to your running Ollama instance on `127.0.0.1:11434`.
+- Launch the unified web app and open `http://127.0.0.1:8000` in your browser.
+- Automatically save conversations, extract memory entities, and build your interactive knowledge graph in real-time.
+
+---
+
+### 2. Enterprise / Multi-Service Mode (Optional Power Mode)
+
+For multi-user deployments or distributed setups with dedicated PostgreSQL, Qdrant, Neo4j, and Redis instances:
 
 ```bash
-# Navigate to project root
-cd MemOs
-
-# Start all microservices in the background. Set the required secrets in .env first.
+# Start all microservices with Docker Compose
 docker compose up -d --build
 ```
 
@@ -235,31 +259,6 @@ docker compose up -d --build
 | **FastAPI Backend & Swagger** | [http://localhost:8000/docs](http://localhost:8000/docs) | Interactive OpenAPI Documentation |
 | **Qdrant Vector Dashboard** | [http://localhost:6333/dashboard](http://localhost:6333/dashboard) | Vector Collection Explorer |
 | **Neo4j Browser** | [http://localhost:7474](http://localhost:7474) | Graph Database Visualizer |
-
----
-
-### 2. Standalone Local Development (Without Docker)
-
-You can also run MemOS directly on your local machine:
-
-#### Backend Setup:
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate          # On Windows (or source venv/bin/activate on Linux/macOS)
-pip install -r requirements.txt
-
-# Run FastAPI dev server (defaults to local SQLite companion mode if Postgres is absent)
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-#### Frontend Setup:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 

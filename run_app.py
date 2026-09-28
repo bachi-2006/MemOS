@@ -34,6 +34,25 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 
+def ensure_quickstart_env():
+    """Ensure a functional .env exists with persistent SECRET_KEY so new users can run immediately without Docker."""
+    env_path = ROOT_DIR / ".env"
+    if not env_path.is_file():
+        import secrets
+        key = secrets.token_urlsafe(32)
+        content = (
+            "# MemOS Auto-Generated QuickStart Configuration\n"
+            "# Operating in zero-Docker local Companion Mode\n"
+            f"SECRET_KEY={key}\n"
+            "COMPANION_MODE=true\n"
+            "DATABASE_URL=sqlite:///./memos_local.db\n"
+            "DEFAULT_EMBEDDING_MODEL=nomic-embed-text\n"
+        )
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print("[QuickStart] Generated initial .env for 2-Minute Zero-Docker Companion Mode.")
+
+
 def check_python_version():
     if sys.version_info < (3, 10):
         print(f"[ERROR] MemOS requires Python 3.10+, found {sys.version}")
@@ -180,6 +199,7 @@ def main():
     parser.add_argument("--test-only", action="store_true", help="Spin up server, verify endpoints, and exit")
     args = parser.parse_args()
 
+    ensure_quickstart_env()
     check_python_version()
     check_dependencies()
 

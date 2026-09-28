@@ -89,22 +89,30 @@ const ALLOWED_TAGS = new Set([
 
 function sanitizeHtml(html) {
   if (typeof DOMParser === "undefined") return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("*").forEach((element) => {
-    if (!ALLOWED_TAGS.has(element.tagName)) {
-      element.replaceWith(...Array.from(element.childNodes));
-      return;
-    }
-    Array.from(element.attributes).forEach((attribute) => {
-      if (element.tagName === "A" && attribute.name === "href" && /^https:\/\//i.test(attribute.value)) {
-        element.setAttribute("target", "_blank");
-        element.setAttribute("rel", "noopener noreferrer");
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    if (!doc.body) return "";
+    doc.body.querySelectorAll("*").forEach((element) => {
+      if (!ALLOWED_TAGS.has(element.tagName)) {
+        if (element.parentNode) {
+          element.replaceWith(...Array.from(element.childNodes));
+        }
         return;
       }
-      element.removeAttribute(attribute.name);
+      Array.from(element.attributes).forEach((attribute) => {
+        if (element.tagName === "A" && attribute.name === "href" && /^(https?:\/\/|mailto:|\/)/i.test(attribute.value)) {
+          element.setAttribute("target", "_blank");
+          element.setAttribute("rel", "noopener noreferrer");
+          return;
+        }
+        element.removeAttribute(attribute.name);
+      });
     });
-  });
-  return doc.body.innerHTML;
+    return doc.body.innerHTML;
+  } catch (err) {
+    console.warn("[markdown] sanitizeHtml error, returning safe text:", err);
+    return html.replace(/<[^>]*>/g, "");
+  }
 }
 
 export function mdSafe(text) {

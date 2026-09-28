@@ -33,8 +33,11 @@ htmlcov/
 # Local databases & logs
 *.sqlite
 *.db
-memos_local.db
+*.db-shm
+*.db-wal
+memos_local.db*
 *.log
+*.zip
 
 # Node & Next.js
 node_modules/

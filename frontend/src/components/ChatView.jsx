@@ -1,6 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import MessageItem from "./MessageItem.jsx";
 import Composer from "./Composer.jsx";
+
+function formatRelativeTime(ts) {
+  if (!ts) return "Recently";
+  const ms = typeof ts === "string" ? new Date(ts).getTime() : ts;
+  if (isNaN(ms)) return "Recently";
+  const diffSec = Math.floor((Date.now() - ms) / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export default function ChatView({
   session,
@@ -16,6 +30,7 @@ export default function ChatView({
   onMemAdd,
   onMemPin,
   onMemDelete,
+  onMemToggleMute,
   onToast,
 }) {
   const scrollRef = useRef(null);
@@ -57,6 +72,19 @@ export default function ChatView({
     const match = (m.content + " " + (m.tags || []).join(" ")).toLowerCase();
     return match.includes(memSearchQuery.toLowerCase());
   });
+
+  const activeRecalledMap = useMemo(() => {
+    const map = new Map();
+    (session?.messages || []).forEach((msg) => {
+      if (Array.isArray(msg.recalledMemories)) {
+        msg.recalledMemories.forEach((rm) => {
+          if (rm.id) map.set(rm.id, rm);
+          if (rm.content) map.set(rm.content.toLowerCase().trim(), rm);
+        });
+      }
+    });
+    return map;
+  }, [session?.messages]);
 
   const hasMessages = Boolean(session && session.messages && session.messages.length > 0);
 
@@ -201,17 +229,31 @@ export default function ChatView({
               filteredMemories.map((m) => {
                 const imp = m.importance_score != null ? m.importance_score : 1.0;
                 const impPct = Math.min(100, Math.round((imp / 2.0) * 100));
+                const recalled = activeRecalledMap.get(m.id) || activeRecalledMap.get((m.content || "").toLowerCase().trim());
+                const isMuted = (m.tags || []).includes("mute_recall");
+                const lastUsedStr = formatRelativeTime(m.lastAccessed || m.createdAt || m.updatedAt);
+                const sourceLabel = m.project ? `📁 ${m.project}` : (m.source === "chat" || m.source === "chat_analysis" ? "💬 Chat" : "✍ Manual");
+
                 return (
-                  <div key={m.id} className={"drawer-memory-item" + (m.pinned ? " pinned" : "")}>
+                  <div key={m.id} className={"drawer-memory-item" + (m.pinned ? " pinned" : "") + (isMuted ? " muted" : "")}>
                     <div className="d-mem-top">
                       <button
                         className={"d-pin-btn" + (m.pinned ? " on" : "")}
                         onClick={() => onMemPin && onMemPin(m.id, !m.pinned)}
-                        title={m.pinned ? "Unpin" : "Pin (always recalled)"}
+                        title={m.pinned ? "Unpin memory" : "Pin memory (always inject in context)"}
                       >
                         {m.pinned ? "📌" : "○"}
                       </button>
-                      <span className="d-mem-text">{m.content}</span>
+                      <button
+                        className={"d-mute-btn" + (isMuted ? " muted" : "")}
+                        onClick={() => onMemToggleMute && onMemToggleMute(m.id)}
+                        title={isMuted ? "Unmute memory (enable prompt recall)" : "Mute memory (exclude from prompt recall)"}
+                      >
+                        {isMuted ? "🔕" : "🔔"}
+                      </button>
+                      <span className="d-mem-text" style={{ opacity: isMuted ? 0.65 : 1 }}>
+                        {m.content}
+                      </span>
                       <button
                         className="d-del-btn"
                         onClick={() => onMemDelete && onMemDelete(m.id)}
@@ -221,14 +263,43 @@ export default function ChatView({
                       </button>
                     </div>
 
+                    {/* Recalled in current conversation indicator */}
+                    {recalled && (
+                      <div className="d-recalled-tag" title="Injected into recent prompt context">
+                        <span>🎯 Recalled</span>
+                        {recalled.relevance_score != null && (
+                          <span>· {Math.round(recalled.relevance_score * 100)}% match</span>
+                        )}
+                      </div>
+                    )}
+
+                    {isMuted && !recalled && (
+                      <div className="d-muted-tag">
+                        <span>🔕 Muted from recall</span>
+                      </div>
+                    )}
+
+                    {/* Meta row: Last used timestamp & source */}
+                    <div className="d-mem-meta">
+                      <span className="d-mem-time" title={m.lastAccessed ? new Date(m.lastAccessed).toLocaleString() : ""}>
+                        🕒 {lastUsedStr}
+                      </span>
+                      <span className="d-mem-source">
+                        {sourceLabel}
+                      </span>
+                    </div>
+
                     <div className="d-mem-footer">
                       <div className="d-tags">
-                        {(m.tags || []).map((t) => (
-                          <span key={t} className="d-tag">{t}</span>
+                        {(m.tags || []).filter((t) => t !== "mute_recall").map((t) => (
+                          <span key={t} className="d-tag">#{t}</span>
                         ))}
                       </div>
-                      <div className="d-gauge" title={`Decay score: ${imp.toFixed(2)}`}>
-                        <div className="d-gauge-fill" style={{ width: `${impPct}%` }} />
+                      <div className="d-gauge-wrap" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="d-imp-label">{imp.toFixed(2)}</span>
+                        <div className="d-gauge" title={`Importance score: ${imp.toFixed(2)}`}>
+                          <div className="d-gauge-fill" style={{ width: `${impPct}%` }} />
+                        </div>
                       </div>
                     </div>
                   </div>

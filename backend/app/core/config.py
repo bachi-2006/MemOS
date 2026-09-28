@@ -95,9 +95,26 @@ class Settings(BaseSettings):
                     kwargs[field_name] = env_val
         super().__init__(**kwargs)
         if not self.SECRET_KEY:
-            raise RuntimeError(
-                "Missing required SECRET_KEY. Add SECRET_KEY to your .env file. "
-                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-            )
+            if self.COMPANION_MODE:
+                import secrets
+                auto_key = secrets.token_urlsafe(32)
+                self.SECRET_KEY = auto_key
+                try:
+                    if not os.path.exists(ENV_FILE):
+                        with open(ENV_FILE, "w", encoding="utf-8") as f:
+                            f.write("# Auto-generated MemOS Local Configuration for Zero-Setup Onboarding\n")
+                            f.write(f"SECRET_KEY={auto_key}\n")
+                            f.write("COMPANION_MODE=true\n")
+                            f.write("DATABASE_URL=sqlite:///./memos_local.db\n")
+                    else:
+                        with open(ENV_FILE, "a", encoding="utf-8") as f:
+                            f.write(f"\nSECRET_KEY={auto_key}\n")
+                except Exception:
+                    pass
+            else:
+                raise RuntimeError(
+                    "Missing required SECRET_KEY. Add SECRET_KEY to your .env file. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
 
 settings = Settings()

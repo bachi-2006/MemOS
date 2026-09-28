@@ -211,3 +211,50 @@ def test_dashboard_metrics_real_counts(client):
     data = r.json()
     assert isinstance(data.get("total_memories", data.get("memories", {}).get("total")), (int, float))
 
+
+def test_knowledge_graph_endpoint(client, alice):
+    """Knowledge graph endpoint returns nodes and edges mapped from memories and profile."""
+    headers, user_id = alice
+    # Store a memory with a known project
+    client.post(
+        "/api/v1/memory/store",
+        json={"content": "Working on MemOS using FastAPI", "source": "chat", "project": "MemOS", "tags": ["fastapi", "python"]},
+        headers=headers,
+    )
+    r = client.get("/api/v1/graph/", headers=headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "nodes" in data
+    assert "edges" in data
+    assert isinstance(data["nodes"], list)
+    assert isinstance(data["edges"], list)
+
+
+def test_toggle_mute_recall(client, alice):
+    """Toggling mute on a memory adds/removes mute_recall tag and excludes it from semantic recall."""
+    headers, user_id = alice
+    r = client.post(
+        "/api/v1/memory/store",
+        json={"content": "Secret password phrase 12345", "source": "manual", "tags": ["confidential"]},
+        headers=headers,
+    )
+    assert r.status_code == 200
+    mem_id = r.json()["id"]
+
+    # Toggle mute ON
+    t1 = client.patch(f"/api/v1/memory/{mem_id}/toggle-mute", headers=headers)
+    assert t1.status_code == 200
+    assert t1.json()["is_muted"] is True
+    assert "mute_recall" in t1.json()["tags"]
+
+    # Verify search excludes the muted memory
+    search_res = client.get("/api/v1/memory/search?query=password+phrase", headers=headers).json()
+    found_ids = [m.get("memory_id") for m in search_res.get("results", [])]
+    assert mem_id not in found_ids
+
+    # Toggle mute OFF
+    t2 = client.patch(f"/api/v1/memory/{mem_id}/toggle-mute", headers=headers)
+    assert t2.status_code == 200
+    assert t2.json()["is_muted"] is False
+    assert "mute_recall" not in t2.json()["tags"]
+

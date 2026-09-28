@@ -25,6 +25,7 @@ import {
   memDelete,
   memClear,
   memPin,
+  memToggleMute,
 } from "./lib/memory.js";
 import { uid, truncate, EMBEDDING_HINT } from "./lib/util.js";
 
@@ -619,6 +620,7 @@ export default function App() {
               onMemAdd={addManual}
               onMemPin={(id, pinned) => memPin(id, pinned)}
               onMemDelete={(id) => memDelete(id)}
+              onMemToggleMute={(id) => memToggleMute(id)}
               onToast={showToast}
             />
           </ErrorBoundary>
@@ -640,7 +642,7 @@ export default function App() {
           </div>
         )}
 
-        {tab === "graph" && <GraphView onToast={showToast} />}
+        {tab === "graph" && <GraphView onToast={showToast} memItems={memItems} />}
 
         {tab === "dashboard" && <DashboardView onToast={showToast} />}
 

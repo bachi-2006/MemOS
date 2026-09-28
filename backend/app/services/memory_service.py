@@ -98,6 +98,21 @@ class MemoryService:
                 limit=limit,
                 project=project
             )
+            # Filter out memories explicitly muted from recall
+            search_results = [
+                r for r in search_results
+                if "mute_recall" not in [str(t).lower() for t in r.get("payload", {}).get("tags", [])]
+            ]
+            if db and search_results:
+                res_ids = [r.get("memory_id") for r in search_results if r.get("memory_id")]
+                muted_db_ids = {
+                    m.id for m in db.query(MemoryModel.id, MemoryModel.tags)
+                    .filter(MemoryModel.id.in_(res_ids))
+                    .all()
+                    if "mute_recall" in [str(t).lower() for t in (m.tags or [])]
+                }
+                if muted_db_ids:
+                    search_results = [r for r in search_results if r.get("memory_id") not in muted_db_ids]
 
         # Keyword & Tag Hybrid Boosting
         keywords = [w.lower().strip() for w in query.split() if len(w.strip()) > 3]
@@ -123,6 +138,8 @@ class MemoryService:
 
                 content_lower = m.content.lower()
                 tags_lower = [str(t).lower() for t in (m.tags or [])]
+                if "mute_recall" in tags_lower:
+                    continue
 
                 match_count = sum(1 for kw in keywords if kw in content_lower or any(kw in t for t in tags_lower))
                 if match_count > 0:

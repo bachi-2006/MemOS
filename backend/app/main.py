@@ -22,27 +22,28 @@ from app.workers.scheduler import start_scheduler, scheduler
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
 
-def _auto_migrate_columns():
-    """Ensure newly added columns exist in SQLite/PostgreSQL without requiring external migration CLI."""
-    from sqlalchemy import text, inspect
+def _run_migrations():
+    """Apply Alembic migrations to keep database schema automatically synchronized with model definitions."""
     try:
-        inspector = inspect(engine)
-        if "memories" in inspector.get_table_names():
-            columns = {col["name"] for col in inspector.get_columns("memories")}
-            with engine.connect() as conn:
-                if "valid_from" not in columns:
-                    conn.execute(text("ALTER TABLE memories ADD COLUMN valid_from DATETIME"))
-                    conn.commit()
-                if "valid_until" not in columns:
-                    conn.execute(text("ALTER TABLE memories ADD COLUMN valid_until DATETIME"))
-                    conn.commit()
-                if "embedding" not in columns:
-                    conn.execute(text("ALTER TABLE memories ADD COLUMN embedding JSON"))
-                    conn.commit()
+        from alembic.config import Config
+        from alembic import command
+        from sqlalchemy import inspect
+        import os
+        alembic_ini_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+        if os.path.exists(alembic_ini_path):
+            cfg = Config(alembic_ini_path)
+            cfg.set_main_option("sqlalchemy.url", str(engine.url))
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            if "alembic_version" not in tables and "memories" in tables:
+                command.stamp(cfg, "head")
+            else:
+                command.upgrade(cfg, "head")
     except Exception as e:
-        print(f"Auto-migration notice: {e}")
+        if "already exists" not in str(e).lower():
+            print(f"[Alembic] Automatic migration notice: {e}")
 
-_auto_migrate_columns()
+_run_migrations()
 
 def _rehydrate_vector_store():
     """Auto-rehydrate in-process LocalVectorStore from SQLite on startup so embeddings persist across restarts."""

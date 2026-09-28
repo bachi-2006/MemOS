@@ -18,6 +18,31 @@ _LOGIN_MAX_ATTEMPTS = 5
 
 
 def _check_login_rate_limit(key: str) -> None:
+    # 1. Multi-worker Redis rate limiter when Redis is available
+    try:
+        from app.services.cache_service import cache_service
+        r = cache_service._redis()
+        if r is not None:
+            now_epoch = int(time.time())
+            window_bucket = now_epoch // _LOGIN_WINDOW_SECONDS
+            redis_key = f"login_attempts:{key}:{window_bucket}"
+            pipe = r.pipeline()
+            pipe.incr(redis_key)
+            pipe.expire(redis_key, _LOGIN_WINDOW_SECONDS * 2)
+            results = pipe.execute()
+            if results and int(results[0]) > _LOGIN_MAX_ATTEMPTS:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many login attempts. Try again later.",
+                    headers={"Retry-After": str(_LOGIN_WINDOW_SECONDS)},
+                )
+            return
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    # 2. Local thread-safe rate limiter fallback
     now = time.monotonic()
     with _login_attempts_lock:
         recent = [timestamp for timestamp in _login_attempts[key] if now - timestamp < _LOGIN_WINDOW_SECONDS]

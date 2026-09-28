@@ -64,7 +64,11 @@ class ContextBuilder:
         if active_project:
             pinned_query = pinned_query.filter(MemoryModel.project == active_project)
         
-        pinned_memories = pinned_query.limit(5).all()
+        pinned_memories = pinned_query.limit(10).all()
+        pinned_memories = [
+            pm for pm in pinned_memories
+            if "mute_recall" not in [str(t).lower() for t in (pm.tags or [])]
+        ][:5]
         if pinned_memories:
             context_parts.append("\n=== PINNED MEMORIES ===")
             for p_idx, pm in enumerate(pinned_memories, 1):

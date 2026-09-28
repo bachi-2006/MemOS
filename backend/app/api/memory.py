@@ -107,6 +107,33 @@ def toggle_pin_memory(
     return {"status": "ok", "memory_id": memory_id, "is_pinned": pinned, "importance_score": mem.importance_score}
 
 
+@router.patch("/{memory_id}/toggle-mute")
+async def toggle_memory_mute(
+    memory_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """Toggle whether a memory is muted from semantic recall without deleting it."""
+    mem = db.query(MemoryModel).filter(
+        MemoryModel.id == memory_id,
+        MemoryModel.user_id == current_user.id
+    ).first()
+    if not mem:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    
+    tags = list(mem.tags or [])
+    if "mute_recall" in tags:
+        tags.remove("mute_recall")
+        muted = False
+    else:
+        tags.append("mute_recall")
+        muted = True
+    mem.tags = tags
+    db.commit()
+    db.refresh(mem)
+    return {"status": "ok", "memory_id": memory_id, "is_muted": muted, "tags": tags}
+
+
 @router.patch("/{memory_id}")
 async def update_memory_content(
     memory_id: str,
